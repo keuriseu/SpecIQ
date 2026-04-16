@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private readonly double _barMaxWidth = 120;
     private string? _npuCategory;
     private string? _npuCounterName;
+    private List<PerformanceCounter> _gpuCounters = [];
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct MEMORYSTATUSEX
@@ -48,6 +49,7 @@ public partial class MainWindow : Window
         _cpuCounter.NextValue(); // Prime the counter
 
         DetectNpuCounter();
+        InitGpuCounters();
 
         _timer = new DispatcherTimer
         {
@@ -241,31 +243,44 @@ public partial class MainWindow : Window
         }
     }
 
-    private void UpdateGpu()
+    private void InitGpuCounters()
     {
         try
         {
             var category = new PerformanceCounterCategory("GPU Engine");
-            var instanceNames = category.GetInstanceNames();
-            float totalGpu = 0;
+            var instances = category.GetInstanceNames()
+                .Where(n => n.Contains("engtype_3D") || n.Contains("engtype_Graphics"))
+                .ToList();
 
-            foreach (var instance in instanceNames)
+            _gpuCounters = instances
+                .Select(n => new PerformanceCounter("GPU Engine", "Utilization Percentage", n, true))
+                .ToList();
+
+            // Prime all counters so the next read returns a real value
+            foreach (var c in _gpuCounters) c.NextValue();
+        }
+        catch
+        {
+            _gpuCounters = [];
+        }
+    }
+
+    private void UpdateGpu()
+    {
+        try
+        {
+            if (_gpuCounters.Count == 0)
             {
-                if (!instance.Contains("engtype_3D") && !instance.Contains("engtype_Graphics"))
-                    continue;
-
-                var counters = category.GetCounters(instance);
-                foreach (var counter in counters)
-                {
-                    if (counter.CounterName == "Utilization Percentage")
-                    {
-                        totalGpu += counter.NextValue();
-                    }
-                    counter.Dispose();
-                }
+                GpuText.Text = "N/A";
+                GpuBar.Width = 0;
+                return;
             }
 
-            if (totalGpu > 100) totalGpu = 100;
+            float totalGpu = 0;
+            foreach (var c in _gpuCounters)
+                totalGpu += c.NextValue();
+
+            totalGpu = Math.Clamp(totalGpu, 0f, 100f);
             GpuText.Text = $"{totalGpu:F0}%";
             GpuBar.Width = _barMaxWidth * totalGpu / 100.0;
 
@@ -278,7 +293,10 @@ public partial class MainWindow : Window
         }
         catch
         {
-            GpuText.Text = "N/A";
+            // Counters may become invalid if a GPU process exits; re-init next cycle
+            foreach (var c in _gpuCounters) c.Dispose();
+            InitGpuCounters();
+            GpuText.Text = "0%";
             GpuBar.Width = 0;
         }
     }
@@ -430,6 +448,7 @@ public partial class MainWindow : Window
     {
         _timer.Stop();
         _cpuCounter.Dispose();
+        foreach (var c in _gpuCounters) c.Dispose();
 #if DEBUG
         DevServer.Stop();
 #endif
