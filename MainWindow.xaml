@@ -160,6 +160,28 @@
 
             <Border Style="{StaticResource SeparatorStyle}"/>
 
+            <!-- NPU -->
+            <Grid Margin="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xE9D2;" Style="{StaticResource IconStyle}"
+                           FontFamily="Segoe MDL2 Assets"/>
+                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                    <TextBlock Text="NPU" Style="{StaticResource LabelStyle}" FontSize="9"/>
+                    <Grid>
+                        <Border Style="{StaticResource BarBackground}"/>
+                        <Border x:Name="NpuBar" Background="#F472B6" CornerRadius="2"
+                                Height="3" HorizontalAlignment="Left" Width="0"/>
+                    </Grid>
+                </StackPanel>
+                <TextBlock Grid.Column="2" x:Name="NpuText" Text="--%" Style="{StaticResource ValueStyle}" Margin="10,0,0,0"/>
+            </Grid>
+
+            <Border Style="{StaticResource SeparatorStyle}"/>
+
             <!-- Network -->
             <Grid Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>

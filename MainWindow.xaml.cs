@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     private long _lastBytesSent;
     private DateTime _lastNetworkCheck = DateTime.MinValue;
     private readonly double _barMaxWidth = 120;
+    private string? _npuCategory;
+    private string? _npuCounterName;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct MEMORYSTATUSEX
@@ -44,6 +46,8 @@ public partial class MainWindow : Window
 
         _cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total", true);
         _cpuCounter.NextValue(); // Prime the counter
+
+        DetectNpuCounter();
 
         _timer = new DispatcherTimer
         {
@@ -102,6 +106,7 @@ public partial class MainWindow : Window
         UpdateCpu();
         UpdateRam();
         UpdateGpu();
+        UpdateNpu();
         UpdateNetwork();
     }
 
@@ -236,6 +241,83 @@ public partial class MainWindow : Window
         {
             GpuText.Text = "N/A";
             GpuBar.Width = 0;
+        }
+    }
+
+    private void DetectNpuCounter()
+    {
+        // Known NPU performance counter category names across vendors
+        var candidates = new[]
+        {
+            ("NPU", "Utilization Percentage"),
+            ("NPU Engine", "Utilization Percentage"),
+            ("Neural Processing Unit", "% Utilization"),
+            ("Qualcomm NPU", "Utilization Percentage"),
+            ("Hexagon NPU", "Utilization Percentage"),
+            ("Intel NPU", "% NPU Utilization"),
+            ("Intel(R) AI Boost", "% NPU Utilization"),
+        };
+
+        foreach (var (category, counter) in candidates)
+        {
+            try
+            {
+                if (PerformanceCounterCategory.Exists(category))
+                {
+                    _npuCategory = category;
+                    _npuCounterName = counter;
+                    return;
+                }
+            }
+            catch { }
+        }
+    }
+
+    private void UpdateNpu()
+    {
+        if (_npuCategory == null)
+        {
+            NpuText.Text = "N/A";
+            NpuBar.Width = 0;
+            return;
+        }
+
+        try
+        {
+            var category = new PerformanceCounterCategory(_npuCategory);
+            var instances = category.GetInstanceNames();
+            float total = 0;
+            int count = 0;
+
+            foreach (var instance in instances)
+            {
+                var counters = category.GetCounters(instance);
+                foreach (var c in counters)
+                {
+                    if (c.CounterName == _npuCounterName)
+                    {
+                        total += c.NextValue();
+                        count++;
+                    }
+                    c.Dispose();
+                }
+            }
+
+            float util = count > 0 ? Math.Min(total, 100f) : 0f;
+            NpuText.Text = $"{util:F0}%";
+            NpuBar.Width = _barMaxWidth * util / 100.0;
+
+            if (util > 80)
+                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            else if (util > 50)
+                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
+            else
+                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF4, 0x72, 0xB6));
+        }
+        catch
+        {
+            NpuText.Text = "N/A";
+            NpuBar.Width = 0;
         }
     }
 
