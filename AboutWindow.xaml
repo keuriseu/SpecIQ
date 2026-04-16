@@ -11,7 +11,7 @@
         Topmost="True"
         ShowInTaskbar="False">
 
-    <Border Background="#F0 1A1A2E" CornerRadius="14" Padding="32,28" MinWidth="300">
+    <Border Background="#F01A1A2E" CornerRadius="14" Padding="32,28" MinWidth="300">
         <Border.Effect>
             <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
         </Border.Effect>
