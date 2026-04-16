@@ -39,6 +39,10 @@ public partial class App : System.Windows.Application
         showItem.Click += (_, _) => ToggleOverlay();
         menu.Items.Add(showItem);
 
+        var aboutItem = new WinForms.ToolStripMenuItem("About");
+        aboutItem.Click += (_, _) => ShowAbout();
+        menu.Items.Add(aboutItem);
+
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
         var exitItem = new WinForms.ToolStripMenuItem("Exit");
@@ -62,6 +66,19 @@ public partial class App : System.Windows.Application
             else
                 window.Show();
         }
+    }
+
+    private AboutWindow? _aboutWindow;
+
+    private void ShowAbout()
+    {
+        if (_aboutWindow is { IsLoaded: true })
+        {
+            _aboutWindow.Activate();
+            return;
+        }
+        _aboutWindow = new AboutWindow();
+        _aboutWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
