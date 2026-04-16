@@ -75,10 +75,60 @@ public partial class MainWindow : Window
         Top = workArea.Top + 16;
     }
 
+    private bool _batteryFocusMode;
+
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed)
             DragMove();
+    }
+
+    private void BatteryRow_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        ToggleBatteryFocus(true);
+    }
+
+    private void BatteryFocus_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        ToggleBatteryFocus(false);
+    }
+
+    private void ToggleBatteryFocus(bool enterFocus)
+    {
+        _batteryFocusMode = enterFocus;
+        ContentPanel.Visibility = enterFocus ? Visibility.Collapsed : Visibility.Visible;
+        BatteryFocusPanel.Visibility = enterFocus ? Visibility.Visible : Visibility.Collapsed;
+        RootBorder.MinWidth = enterFocus ? 120 : 200;
+
+        if (enterFocus)
+            UpdateBatteryFocus();
+    }
+
+    private void UpdateBatteryFocus()
+    {
+        var power = WinForms.SystemInformation.PowerStatus;
+        var percent = (int)(power.BatteryLifePercent * 100);
+        if (percent > 100) percent = 100;
+
+        BatteryFocusPct.Text = percent < 0 ? "--" : $"{percent}%";
+
+        if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
+        {
+            BatteryFocusStatus.Text = "Charging";
+            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
+        }
+        else if (percent <= 20)
+        {
+            BatteryFocusStatus.Text = "Battery";
+            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+        }
+        else
+        {
+            BatteryFocusStatus.Text = "Battery";
+            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+        }
     }
 
     private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
@@ -106,6 +156,12 @@ public partial class MainWindow : Window
 
     private void UpdateAll()
     {
+        if (_batteryFocusMode)
+        {
+            UpdateBatteryFocus();
+            return;
+        }
+
         UpdateDateTime();
         UpdateBattery();
         UpdateCpu();

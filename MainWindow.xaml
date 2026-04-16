@@ -57,6 +57,22 @@
             <DropShadowEffect Color="Black" BlurRadius="20" Opacity="0.4" ShadowDepth="2"/>
         </Border.Effect>
 
+        <Grid>
+
+        <!-- Battery Focus Mode (hidden by default) -->
+        <StackPanel x:Name="BatteryFocusPanel" Visibility="Collapsed"
+                    MouseLeftButtonDown="BatteryFocus_Click" Cursor="Hand"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock x:Name="BatteryFocusPct" Text="--"
+                       FontSize="52" FontWeight="Bold" FontFamily="Segoe UI"
+                       Foreground="White" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="BatteryFocusStatus" Text="Battery"
+                       FontSize="11" FontFamily="Segoe UI"
+                       Foreground="#60FFFFFF" HorizontalAlignment="Center"
+                       Margin="0,-4,0,0"/>
+        </StackPanel>
+
+        <!-- Full overlay -->
         <StackPanel x:Name="ContentPanel">
 
             <!-- DateTime -->
@@ -72,8 +88,9 @@
 
             <Border Style="{StaticResource SeparatorStyle}"/>
 
-            <!-- Battery -->
-            <Grid Margin="0,6">
+            <!-- Battery (clickable to toggle focus mode) -->
+            <Grid Margin="0,6" x:Name="BatteryRow" MouseLeftButtonDown="BatteryRow_Click" Cursor="Hand"
+                  Background="Transparent">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="20"/>
                     <ColumnDefinition Width="*"/>
@@ -203,5 +220,7 @@
             </Grid>
 
         </StackPanel>
+
+        </Grid>
     </Border>
 </Window>
