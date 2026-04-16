@@ -61,6 +61,9 @@ public partial class MainWindow : Window
         PositionTopRight();
         UpdateAll();
         _timer.Start();
+#if DEBUG
+        DevServer.Start(5000);
+#endif
     }
 
     private void PositionTopRight()
@@ -108,7 +111,43 @@ public partial class MainWindow : Window
         UpdateGpu();
         UpdateNpu();
         UpdateNetwork();
+#if DEBUG
+        PublishStats();
+#endif
     }
+
+#if DEBUG
+    private void PublishStats()
+    {
+        var power = WinForms.SystemInformation.PowerStatus;
+        var batPct = (int)(power.BatteryLifePercent * 100);
+
+        var ramParts = RamText.Text.Split('/');
+        var ramUsed = ramParts.Length > 0 ? ramParts[0].Trim() : "--";
+        var ramTotal = ramParts.Length > 1 ? ramParts[1].Replace("GB", "").Trim() : "--";
+
+        var mem = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
+        var ramPct = GlobalMemoryStatusEx(ref mem) ? (int)mem.dwMemoryLoad : 0;
+
+        SystemStats.Snapshot = new StatsSnapshot
+        {
+            Time = TimeText.Text,
+            Date = DateText.Text,
+            BatteryPct = batPct > 100 || batPct < 0 ? -1 : batPct,
+            BatteryCharging = power.PowerLineStatus == WinForms.PowerLineStatus.Online,
+            CpuPct = int.TryParse(CpuText.Text.TrimEnd('%'), out var c) ? c : 0,
+            RamPct = ramPct,
+            RamUsed = ramUsed,
+            RamTotal = ramTotal,
+            GpuPct = int.TryParse(GpuText.Text.TrimEnd('%'), out var g) ? g : 0,
+            NpuPct = NpuText.Text == "N/A" ? -1
+                     : int.TryParse(NpuText.Text.TrimEnd('%'), out var n) ? n : -1,
+            NetworkName = NetworkName.Text,
+            NetworkUp = NetworkUpText.Text.Replace("↑ ", ""),
+            NetworkDown = NetworkDownText.Text.Replace("↓ ", ""),
+        };
+    }
+#endif
 
     private void UpdateDateTime()
     {
@@ -391,6 +430,9 @@ public partial class MainWindow : Window
     {
         _timer.Stop();
         _cpuCounter.Dispose();
+#if DEBUG
+        DevServer.Stop();
+#endif
         base.OnClosed(e);
     }
 }
