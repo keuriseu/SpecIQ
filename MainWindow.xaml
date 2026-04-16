@@ -90,6 +90,24 @@
             <!-- Session drain -->
             <TextBlock x:Name="BatteryFocusSession" Text="-- this session"
                        FontSize="10" FontFamily="Segoe UI"
+                       Foreground="#60FFFFFF" HorizontalAlignment="Center"
+                       Margin="0,0,0,10"/>
+
+            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
+
+            <!-- Capacity row: current / design -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,3">
+                <TextBlock x:Name="BatteryFocusCapacity" Text="-- Wh"
+                           FontSize="13" FontWeight="SemiBold" FontFamily="Segoe UI"
+                           Foreground="White"/>
+                <TextBlock Text=" / " FontSize="13" FontFamily="Segoe UI" Foreground="#40FFFFFF"/>
+                <TextBlock x:Name="BatteryFocusDesign" Text="-- Wh design"
+                           FontSize="13" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
+            </StackPanel>
+
+            <!-- Health -->
+            <TextBlock x:Name="BatteryFocusHealth" Text="--% health"
+                       FontSize="10" FontFamily="Segoe UI"
                        Foreground="#60FFFFFF" HorizontalAlignment="Center"/>
         </StackPanel>
 

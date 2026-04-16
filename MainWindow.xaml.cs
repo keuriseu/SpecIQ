@@ -83,6 +83,10 @@ public partial class MainWindow : Window
     private int _drainSamplePct = -1;
     private double _drainRatePerHour = double.NaN;
 
+    // Battery capacity (read once — doesn't change at runtime)
+    private int _batteryDesignMwh = -1;
+    private int _batteryFullMwh = -1;
+
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed)
@@ -106,10 +110,41 @@ public partial class MainWindow : Window
         _batteryFocusMode = enterFocus;
         ContentPanel.Visibility = enterFocus ? Visibility.Collapsed : Visibility.Visible;
         BatteryFocusPanel.Visibility = enterFocus ? Visibility.Visible : Visibility.Collapsed;
-        RootBorder.MinWidth = enterFocus ? 120 : 200;
+        RootBorder.MinWidth = enterFocus ? 140 : 200;
 
         if (enterFocus)
+        {
+            if (_batteryDesignMwh < 0)
+                ReadBatteryCapacity();
             UpdateBatteryFocus();
+        }
+    }
+
+    private void ReadBatteryCapacity()
+    {
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher(
+                @"root\WMI", "SELECT * FROM BatteryStaticData");
+            foreach (System.Management.ManagementObject obj in searcher.Get())
+            {
+                _batteryDesignMwh = Convert.ToInt32(obj["DesignedCapacity"]);
+                break;
+            }
+        }
+        catch { }
+
+        try
+        {
+            using var searcher = new System.Management.ManagementObjectSearcher(
+                @"root\WMI", "SELECT * FROM BatteryFullChargedCapacity");
+            foreach (System.Management.ManagementObject obj in searcher.Get())
+            {
+                _batteryFullMwh = Convert.ToInt32(obj["FullChargedCapacity"]);
+                break;
+            }
+        }
+        catch { }
     }
 
     private void UpdateBatteryFocus()
@@ -191,6 +226,40 @@ public partial class MainWindow : Window
         else
         {
             BatteryFocusSession.Text = "-- this session";
+        }
+
+        // Capacity & health
+        if (_batteryFullMwh > 0)
+        {
+            var fullWh = _batteryFullMwh / 1000.0;
+            BatteryFocusCapacity.Text = $"{fullWh:F1} Wh";
+        }
+        else
+        {
+            BatteryFocusCapacity.Text = "--";
+        }
+
+        if (_batteryDesignMwh > 0)
+        {
+            var designWh = _batteryDesignMwh / 1000.0;
+            BatteryFocusDesign.Text = $"/ {designWh:F1} Wh design";
+
+            if (_batteryFullMwh > 0)
+            {
+                var health = (int)Math.Round(_batteryFullMwh * 100.0 / _batteryDesignMwh);
+                health = Math.Clamp(health, 0, 100);
+                BatteryFocusHealth.Text = $"{health}% health";
+                BatteryFocusHealth.Foreground = health >= 80
+                    ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80))
+                    : health >= 60
+                        ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
+                        : new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            }
+        }
+        else
+        {
+            BatteryFocusDesign.Text = "";
+            BatteryFocusHealth.Text = "";
         }
     }
 
