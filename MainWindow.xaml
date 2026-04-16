@@ -62,14 +62,35 @@
         <!-- Battery Focus Mode (hidden by default) -->
         <StackPanel x:Name="BatteryFocusPanel" Visibility="Collapsed"
                     MouseLeftButtonDown="BatteryFocus_Click" Cursor="Hand"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MinWidth="160">
+
+            <!-- Big percentage -->
             <TextBlock x:Name="BatteryFocusPct" Text="--"
-                       FontSize="52" FontWeight="Bold" FontFamily="Segoe UI"
+                       FontSize="56" FontWeight="Bold" FontFamily="Segoe UI"
                        Foreground="White" HorizontalAlignment="Center"/>
             <TextBlock x:Name="BatteryFocusStatus" Text="Battery"
                        FontSize="11" FontFamily="Segoe UI"
                        Foreground="#60FFFFFF" HorizontalAlignment="Center"
-                       Margin="0,-4,0,0"/>
+                       Margin="0,-6,0,10"/>
+
+            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
+
+            <!-- Drain rate + time remaining -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4">
+                <TextBlock x:Name="BatteryFocusDrain" Text="-- %/hr"
+                           FontSize="13" FontWeight="SemiBold" FontFamily="Segoe UI"
+                           Foreground="White"/>
+                <TextBlock Text=" · " FontSize="13" FontFamily="Segoe UI" Foreground="#40FFFFFF"/>
+                <TextBlock x:Name="BatteryFocusTime" Text="--"
+                           FontSize="13" FontWeight="SemiBold" FontFamily="Segoe UI"
+                           Foreground="White"/>
+            </StackPanel>
+
+            <!-- Session drain -->
+            <TextBlock x:Name="BatteryFocusSession" Text="-- this session"
+                       FontSize="10" FontFamily="Segoe UI"
+                       Foreground="#60FFFFFF" HorizontalAlignment="Center"/>
         </StackPanel>
 
         <!-- Full overlay -->

@@ -77,6 +77,12 @@ public partial class MainWindow : Window
 
     private bool _batteryFocusMode;
 
+    // Battery tracking for drain rate and session delta
+    private int _sessionStartPct = -1;
+    private DateTime _drainSampleTime = DateTime.MinValue;
+    private int _drainSamplePct = -1;
+    private double _drainRatePerHour = double.NaN;
+
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed)
@@ -109,25 +115,82 @@ public partial class MainWindow : Window
     private void UpdateBatteryFocus()
     {
         var power = WinForms.SystemInformation.PowerStatus;
-        var percent = (int)(power.BatteryLifePercent * 100);
-        if (percent > 100) percent = 100;
+        var pct = (int)(power.BatteryLifePercent * 100);
+        if (pct > 100) pct = 100;
+        var charging = power.PowerLineStatus == WinForms.PowerLineStatus.Online;
 
-        BatteryFocusPct.Text = percent < 0 ? "--" : $"{percent}%";
+        // Big percentage
+        BatteryFocusPct.Text = pct < 0 ? "--" : $"{pct}%";
+        BatteryFocusStatus.Text = charging ? "Charging" : "Battery";
+        BatteryFocusPct.Foreground = charging
+            ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80))
+            : pct <= 20
+                ? new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
+                : new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
 
-        if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
+        // Record session start
+        if (_sessionStartPct < 0 && pct >= 0)
+            _sessionStartPct = pct;
+
+        // Track drain rate — update sample when % drops on battery
+        if (!charging && pct >= 0)
         {
-            BatteryFocusStatus.Text = "Charging";
-            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
-        }
-        else if (percent <= 20)
-        {
-            BatteryFocusStatus.Text = "Battery";
-            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+            if (_drainSamplePct < 0)
+            {
+                _drainSamplePct = pct;
+                _drainSampleTime = DateTime.Now;
+            }
+            else if (pct < _drainSamplePct)
+            {
+                var elapsed = (DateTime.Now - _drainSampleTime).TotalHours;
+                if (elapsed > 0)
+                    _drainRatePerHour = (_drainSamplePct - pct) / elapsed;
+                _drainSamplePct = pct;
+                _drainSampleTime = DateTime.Now;
+            }
         }
         else
         {
-            BatteryFocusStatus.Text = "Battery";
-            BatteryFocusPct.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+            // Reset drain tracking when plugged in
+            _drainSamplePct = -1;
+            _drainRatePerHour = double.NaN;
+        }
+
+        // Drain rate
+        if (!charging && !double.IsNaN(_drainRatePerHour))
+            BatteryFocusDrain.Text = $"↓ {_drainRatePerHour:F1}%/hr";
+        else if (charging)
+            BatteryFocusDrain.Text = "↑ Charging";
+        else
+            BatteryFocusDrain.Text = "-- %/hr";
+
+        // Time remaining
+        var secsLeft = power.BatteryLifeRemaining;
+        if (secsLeft > 0)
+        {
+            var t = TimeSpan.FromSeconds(secsLeft);
+            BatteryFocusTime.Text = t.Hours > 0
+                ? $"{t.Hours}h {t.Minutes:D2}m"
+                : $"{t.Minutes}m";
+        }
+        else
+        {
+            BatteryFocusTime.Text = charging ? "Plugged in" : "--";
+        }
+
+        // Session drain
+        if (_sessionStartPct >= 0 && pct >= 0)
+        {
+            var delta = _sessionStartPct - pct;
+            BatteryFocusSession.Text = delta == 0
+                ? "No change this session"
+                : delta > 0
+                    ? $"−{delta}% this session"
+                    : $"+{-delta}% this session";
+        }
+        else
+        {
+            BatteryFocusSession.Text = "-- this session";
         }
     }
 
