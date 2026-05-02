@@ -25,7 +25,11 @@ public record BenchmarkResult(int SingleCore, int MultiCore, string? ResultUrl);
 
 public static class GeekbenchService
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+    private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = true })
+    {
+        Timeout = TimeSpan.FromSeconds(20),
+        DefaultRequestHeaders = { { "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36" } }
+    };
 
     private static readonly string[] SearchPaths =
     [
@@ -55,7 +59,13 @@ public static class GeekbenchService
         {
             // Try to read the download page for the latest version
             var html = await Http.GetStringAsync("https://www.geekbench.com/download/windows/");
-            var match = Regex.Match(html, @"Geekbench[- ](\d+\.\d+\.\d+)[- ]Windows");
+
+            // Match CDN href directly: Geekbench-6.7.1-WindowsSetup.exe or WindowsARM64Setup.exe
+            var match = Regex.Match(html, @"Geekbench-(\d+\.\d+\.\d+)-Windows(?:ARM64)?Setup\.exe");
+            if (!match.Success)
+                // Fallback: match text like "Geekbench 6.7.1 for Windows"
+                match = Regex.Match(html, @"Geekbench[- ](\d+\.\d+\.\d+)[- ](?:for )?Windows");
+
             if (match.Success)
             {
                 latestVersion = match.Groups[1].Value;
