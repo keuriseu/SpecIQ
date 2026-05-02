@@ -33,6 +33,10 @@ public partial class MainWindow : Window
     private static SolidColorBrush LoadBrush(float pct, SolidColorBrush accent) =>
         pct > 80 ? BrushRed : pct > 50 ? BrushYellow : accent;
 
+    // Returns the width of the track (parent Grid) so bar widths don't self-reference
+    private static double TrackWidth(FrameworkElement bar) =>
+        bar.Parent is FrameworkElement parent ? parent.ActualWidth : 0;
+
     private readonly DispatcherTimer _timer;
     private readonly PerformanceCounter _cpuCounter;
     private long _lastBytesReceived;
@@ -385,9 +389,7 @@ public partial class MainWindow : Window
         }
 
         BatteryText.Text = $"{percent}%";
-        BatteryBar.Width = BatteryBar.ActualWidth > 0
-            ? BatteryBar.ActualWidth * percent / 100.0
-            : percent;
+        BatteryBar.Width = TrackWidth(BatteryBar) * percent / 100.0;
 
         if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
         {
@@ -417,9 +419,7 @@ public partial class MainWindow : Window
         {
             var pct = Math.Clamp(_cpuCounter.NextValue(), 0f, 100f);
             CpuText.Text = $"{pct:F0}%";
-            CpuBar.Width = CpuBar.ActualWidth > 0
-                ? CpuBar.ActualWidth * pct / 100.0
-                : pct;
+            CpuBar.Width = TrackWidth(CpuBar) * pct / 100.0;
             CpuBar.Background = LoadBrush(pct, BrushBlue);
         }
         catch { CpuText.Text = "N/A"; }
@@ -435,9 +435,7 @@ public partial class MainWindow : Window
         _lastRamPct = (int)mem.dwMemoryLoad;
 
         RamText.Text = $"{usedGb:F1}/{totalGb:F0} GB";
-        RamBar.Width = RamBar.ActualWidth > 0
-            ? RamBar.ActualWidth * _lastRamPct / 100.0
-            : _lastRamPct;
+        RamBar.Width = TrackWidth(RamBar) * _lastRamPct / 100.0;
         RamBar.Background = LoadBrush(_lastRamPct, BrushPurple);
     }
 
@@ -471,9 +469,7 @@ public partial class MainWindow : Window
             total = Math.Clamp(total, 0f, 100f);
 
             GpuText.Text = $"{total:F0}%";
-            GpuBar.Width = GpuBar.ActualWidth > 0
-                ? GpuBar.ActualWidth * total / 100.0
-                : total;
+            GpuBar.Width = TrackWidth(GpuBar) * total / 100.0;
             GpuBar.Background = LoadBrush(total, BrushOrange);
         }
         catch
@@ -536,9 +532,7 @@ public partial class MainWindow : Window
 
             float util = count > 0 ? Math.Min(total, 100f) : 0f;
             NpuText.Text = $"{util:F0}%";
-            NpuBar.Width = NpuBar.ActualWidth > 0
-                ? NpuBar.ActualWidth * util / 100.0
-                : util;
+            NpuBar.Width = TrackWidth(NpuBar) * util / 100.0;
             NpuBar.Background = LoadBrush(util, BrushPink);
         }
         catch { NpuText.Text = "N/A"; NpuBar.Width = 0; }
