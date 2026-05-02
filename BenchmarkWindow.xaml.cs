@@ -56,7 +56,8 @@ public partial class BenchmarkWindow : Window
         {
             InstallRow.Visibility = Visibility.Visible;
             RunRow.Visibility     = Visibility.Collapsed;
-            InstallBtn.IsEnabled  = _info.DownloadUrl != null;
+            InstallBtn.IsEnabled  = true;
+            InstallBtn.Content    = _info.DownloadUrl != null ? "Install" : "Download Page";
         }
 
         ShowPanel(ReadyPanel);
@@ -66,7 +67,11 @@ public partial class BenchmarkWindow : Window
 
     private async void Install_Click(object sender, RoutedEventArgs e)
     {
-        if (_info?.DownloadUrl is not { } url) return;
+        if (_info?.DownloadUrl is not { } url)
+        {
+            Process.Start(new ProcessStartInfo("https://www.geekbench.com/download/") { UseShellExecute = true });
+            return;
+        }
 
         ShowPanel(InstallingPanel);
         _cts = new CancellationTokenSource();
