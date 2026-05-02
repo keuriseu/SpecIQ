@@ -171,7 +171,7 @@
 
             <!-- ── Result panel ── -->
             <StackPanel x:Name="ResultPanel" Visibility="Collapsed" Margin="20,16,20,20">
-                <TextBlock Text="CPU BENCHMARK RESULTS" Style="{StaticResource Label}"
+                <TextBlock x:Name="ResultTitle" Text="CPU BENCHMARK RESULTS" Style="{StaticResource Label}"
                            HorizontalAlignment="Center" Margin="0,0,0,14"/>
 
                 <Grid Margin="0,0,0,6">
@@ -179,7 +179,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Single-Core" Style="{StaticResource Label}"
+                    <TextBlock x:Name="ResultLabelA" Grid.Column="0" Text="Single-Core" Style="{StaticResource Label}"
                                FontSize="12" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" x:Name="ResultSingle" Text="—"
                                FontSize="22" FontWeight="Bold" FontFamily="Segoe UI"
@@ -193,7 +193,7 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="Multi-Core" Style="{StaticResource Label}"
+                    <TextBlock x:Name="ResultLabelB" Grid.Column="0" Text="Multi-Core" Style="{StaticResource Label}"
                                FontSize="12" VerticalAlignment="Center"/>
                     <TextBlock Grid.Column="1" x:Name="ResultMulti" Text="—"
                                FontSize="22" FontWeight="Bold" FontFamily="Segoe UI"

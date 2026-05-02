@@ -162,6 +162,19 @@ public partial class BenchmarkWindow : Window
     {
         _dotTimer.Stop();
 
+        if (result.Gpu)
+        {
+            ResultTitle.Text  = "GPU BENCHMARK RESULTS";
+            ResultLabelA.Text = "OpenCL";
+            ResultLabelB.Text = "Vulkan";
+        }
+        else
+        {
+            ResultTitle.Text  = "CPU BENCHMARK RESULTS";
+            ResultLabelA.Text = "Single-Core";
+            ResultLabelB.Text = "Multi-Core";
+        }
+
         ResultSingle.Text = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
         ResultMulti.Text  = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
 

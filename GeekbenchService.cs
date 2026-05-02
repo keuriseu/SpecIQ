@@ -21,7 +21,7 @@ public record GeekbenchInfo(
                                                        : "Installed";
 }
 
-public record BenchmarkResult(int SingleCore, int MultiCore, string? ResultUrl);
+public record BenchmarkResult(int SingleCore, int MultiCore, string? ResultUrl, bool Gpu = false);
 
 public static class GeekbenchService
 {
@@ -180,10 +180,10 @@ public static class GeekbenchService
         proc.BeginErrorReadLine();
 
         await proc.WaitForExitAsync(ct);
-        return ParseResult(lines);
+        return ParseResult(lines, gpu);
     }
 
-    private static BenchmarkResult ParseResult(IEnumerable<string> lines)
+    private static BenchmarkResult ParseResult(IEnumerable<string> lines, bool gpu)
     {
         int    single = 0, multi = 0;
         string? url   = null;
@@ -199,13 +199,16 @@ public static class GeekbenchService
             m = Regex.Match(t, @"Multi-Core Score\s+(\d+)");
             if (m.Success) { multi = int.Parse(m.Groups[1].Value); continue; }
 
-            // GPU scores (OpenCL / Vulkan — reported as single value each)
-            m = Regex.Match(t, @"(?:OpenCL|Vulkan|Metal) Score\s+(\d+)");
+            // GPU scores: OpenCL → single slot, Vulkan/Metal → multi slot
+            m = Regex.Match(t, @"OpenCL Score\s+(\d+)");
             if (m.Success) { single = int.Parse(m.Groups[1].Value); continue; }
+
+            m = Regex.Match(t, @"(?:Vulkan|Metal) Score\s+(\d+)");
+            if (m.Success) { multi = int.Parse(m.Groups[1].Value); continue; }
 
             if (t.StartsWith("https://browser.geekbench.com/")) url = t;
         }
 
-        return new BenchmarkResult(single, multi, url);
+        return new BenchmarkResult(single, multi, url, Gpu: gpu);
     }
 }

@@ -272,6 +272,8 @@ public partial class MainWindow : Window
     {
         Dispatcher.Invoke(() =>
         {
+            ScoreLabelA.Text = result.Gpu ? "OpenCL"      : "Single-Core";
+            ScoreLabelB.Text = result.Gpu ? "Vulkan"       : "Multi-Core";
             ScoreSingle.Text = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
             ScoreMulti.Text  = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
 
