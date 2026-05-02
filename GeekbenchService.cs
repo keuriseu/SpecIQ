@@ -1,0 +1,171 @@
+using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+
+namespace SpecIQ;
+
+public record GeekbenchInfo(
+    string? InstalledPath,
+    string? InstalledVersion,
+    string? LatestVersion,
+    string? DownloadUrl)
+{
+    public bool IsInstalled    => InstalledPath != null;
+    public bool UpdateAvailable => IsInstalled && LatestVersion != null && InstalledVersion != LatestVersion;
+
+    public string StatusText => !IsInstalled           ? "Not installed"
+        : UpdateAvailable                              ? $"v{InstalledVersion}  ·  v{LatestVersion} available"
+        : InstalledVersion != null                     ? $"v{InstalledVersion}  ·  Up to date"
+                                                       : "Installed";
+}
+
+public record BenchmarkResult(int SingleCore, int MultiCore, string? ResultUrl);
+
+public static class GeekbenchService
+{
+    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
+
+    private static readonly string[] SearchPaths =
+    [
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),   "Geekbench 6"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Geekbench 6"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Geekbench 6"),
+    ];
+
+    public static string? FindInstalled() =>
+        SearchPaths.Select(d => Path.Combine(d, "geekbench6.exe")).FirstOrDefault(File.Exists);
+
+    public static string? GetInstalledVersion(string exePath)
+    {
+        try { return FileVersionInfo.GetVersionInfo(exePath).FileVersion?.Trim(); }
+        catch { return null; }
+    }
+
+    public static async Task<GeekbenchInfo> CheckAsync()
+    {
+        var exePath = FindInstalled();
+        var installedVersion = exePath != null ? GetInstalledVersion(exePath) : null;
+
+        string? latestVersion = null;
+        string? downloadUrl   = null;
+
+        try
+        {
+            // Try to read the download page for the latest version
+            var html = await Http.GetStringAsync("https://www.geekbench.com/download/windows/");
+            var match = Regex.Match(html, @"Geekbench[- ](\d+\.\d+\.\d+)[- ]Windows");
+            if (match.Success)
+            {
+                latestVersion = match.Groups[1].Value;
+                downloadUrl   = BuildDownloadUrl(latestVersion);
+            }
+        }
+        catch { /* version check is best-effort */ }
+
+        return new GeekbenchInfo(exePath, installedVersion, latestVersion, downloadUrl);
+    }
+
+    private static string BuildDownloadUrl(string version)
+    {
+        var isArm = RuntimeInformation.OSArchitecture == Architecture.Arm64;
+        var suffix = isArm ? "WindowsARM64Setup" : "WindowsSetup";
+        return $"https://cdn.geekbench.com/Geekbench-{version}-{suffix}.exe";
+    }
+
+    public static async Task DownloadAndInstallAsync(
+        string url,
+        IProgress<(int Percent, string Status)> progress,
+        CancellationToken ct = default)
+    {
+        var tempFile = Path.Combine(Path.GetTempPath(), "GeekbenchSetup.exe");
+
+        using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+
+        var total = response.Content.Headers.ContentLength ?? -1L;
+        await using var download = await response.Content.ReadAsStreamAsync(ct);
+        await using var file     = File.Create(tempFile);
+
+        var buffer     = new byte[81920];
+        long received  = 0;
+        int  read;
+
+        while ((read = await download.ReadAsync(buffer, ct)) > 0)
+        {
+            await file.WriteAsync(buffer.AsMemory(0, read), ct);
+            received += read;
+            var pct = total > 0 ? (int)(received * 100 / total) : -1;
+            var mb  = received / 1_048_576.0;
+            progress.Report((pct, $"Downloading…  {mb:F0} MB"));
+        }
+        await file.FlushAsync(ct);
+        file.Close();
+
+        progress.Report((100, "Installing…"));
+
+        var psi  = new ProcessStartInfo(tempFile, "/S") { UseShellExecute = true, Verb = "runas" };
+        var proc = Process.Start(psi) ?? throw new InvalidOperationException("Installer did not start.");
+        await proc.WaitForExitAsync(ct);
+
+        if (proc.ExitCode != 0)
+            throw new InvalidOperationException($"Installer exited with code {proc.ExitCode}.");
+    }
+
+    public static async Task<BenchmarkResult> RunAsync(
+        string exePath,
+        IProgress<string> progress,
+        CancellationToken ct = default)
+    {
+        var psi = new ProcessStartInfo(exePath, "--cpu")
+        {
+            UseShellExecute        = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            CreateNoWindow         = true,
+        };
+
+        using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        var lines = new List<string>();
+
+        proc.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data is not { Length: > 0 } line) return;
+            lines.Add(line);
+            var trimmed = line.Trim();
+            if (trimmed.Length > 0) progress.Report(trimmed);
+        };
+        proc.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data?.Trim() is { Length: > 0 } line) progress.Report(line);
+        };
+
+        proc.Start();
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
+
+        await proc.WaitForExitAsync(ct);
+        return ParseResult(lines);
+    }
+
+    private static BenchmarkResult ParseResult(IEnumerable<string> lines)
+    {
+        int    single = 0, multi = 0;
+        string? url   = null;
+
+        foreach (var line in lines)
+        {
+            var t = line.Trim();
+            var m = Regex.Match(t, @"Single-Core Score\s+(\d+)");
+            if (m.Success) single = int.Parse(m.Groups[1].Value);
+
+            m = Regex.Match(t, @"Multi-Core Score\s+(\d+)");
+            if (m.Success) multi = int.Parse(m.Groups[1].Value);
+
+            if (t.StartsWith("https://browser.geekbench.com/")) url = t;
+        }
+
+        return new BenchmarkResult(single, multi, url);
+    }
+}

@@ -111,6 +111,50 @@
                        Foreground="#60FFFFFF" HorizontalAlignment="Center"/>
         </StackPanel>
 
+        <!-- Geekbench score flash -->
+        <StackPanel x:Name="ScorePanel" Visibility="Collapsed"
+                    MouseLeftButtonDown="ScorePanel_Click" Cursor="Hand"
+                    HorizontalAlignment="Center" MinWidth="180">
+
+            <TextBlock Text="GEEKBENCH 6" FontSize="9" FontFamily="Segoe UI"
+                       FontWeight="Bold" Foreground="#50FFFFFF" HorizontalAlignment="Center"
+                       Margin="0,0,0,4"/>
+
+            <TextBlock Text="CPU" FontSize="11" FontFamily="Segoe UI"
+                       Foreground="#60FFFFFF" HorizontalAlignment="Center"
+                       Margin="0,0,0,14"/>
+
+            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,14"/>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Single-Core" FontSize="10" FontFamily="Segoe UI"
+                           Foreground="#70FFFFFF" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="ScoreSingle" Text="—"
+                           FontSize="26" FontWeight="Bold" FontFamily="Segoe UI"
+                           Foreground="White" Margin="16,0,0,0"/>
+            </Grid>
+
+            <Grid Margin="0,0,0,14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Multi-Core" FontSize="10" FontFamily="Segoe UI"
+                           Foreground="#70FFFFFF" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" x:Name="ScoreMulti" Text="—"
+                           FontSize="26" FontWeight="Bold" FontFamily="Segoe UI"
+                           Foreground="#60A5FA" Margin="16,0,0,0"/>
+            </Grid>
+
+            <TextBlock x:Name="ScoreDismissHint" Text="tap to dismiss"
+                       FontSize="9" FontFamily="Segoe UI"
+                       Foreground="#30FFFFFF" HorizontalAlignment="Center"/>
+        </StackPanel>
+
         <!-- Full overlay -->
         <StackPanel x:Name="ContentPanel">
 

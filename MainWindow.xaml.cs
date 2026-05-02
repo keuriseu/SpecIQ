@@ -260,6 +260,48 @@ public partial class MainWindow : Window
         }
     }
 
+    // ── Benchmark score flash ─────────────────────────────────────────────
+
+    private DispatcherTimer? _scoreDismissTimer;
+
+    public void ShowBenchmarkScore(BenchmarkResult result)
+    {
+        Dispatcher.Invoke(() =>
+        {
+            ScoreSingle.Text = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
+            ScoreMulti.Text  = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
+
+            _batteryFocusMode = false;
+            ContentPanel.Visibility    = Visibility.Collapsed;
+            BatteryFocusPanel.Visibility = Visibility.Collapsed;
+            ScorePanel.Visibility      = Visibility.Visible;
+            RootBorder.MinWidth        = 180;
+
+            ScorePanel.Opacity = 0;
+            ScorePanel.BeginAnimation(OpacityProperty,
+                new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(400)) { EasingFunction = new QuadraticEase() });
+
+            _scoreDismissTimer?.Stop();
+            _scoreDismissTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _scoreDismissTimer.Tick += (_, _) => DismissScore();
+            _scoreDismissTimer.Start();
+        });
+    }
+
+    private void ScorePanel_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        DismissScore();
+    }
+
+    private void DismissScore()
+    {
+        _scoreDismissTimer?.Stop();
+        ScorePanel.Visibility     = Visibility.Collapsed;
+        ContentPanel.Visibility   = Visibility.Visible;
+        RootBorder.MinWidth       = 200;
+    }
+
     // ── Hover fade ────────────────────────────────────────────────────────
 
     private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) =>

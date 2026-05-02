@@ -39,6 +39,10 @@ public partial class App : System.Windows.Application
         showItem.Click += (_, _) => ToggleOverlay();
         menu.Items.Add(showItem);
 
+        var benchItem = new WinForms.ToolStripMenuItem("Run Benchmark…");
+        benchItem.Click += (_, _) => ShowBenchmark();
+        menu.Items.Add(benchItem);
+
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
@@ -66,6 +70,19 @@ public partial class App : System.Windows.Application
             else
                 window.Show();
         }
+    }
+
+    private BenchmarkWindow? _benchmarkWindow;
+
+    private void ShowBenchmark()
+    {
+        if (_benchmarkWindow is { IsLoaded: true })
+        {
+            _benchmarkWindow.Activate();
+            return;
+        }
+        _benchmarkWindow = new BenchmarkWindow();
+        _benchmarkWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;
