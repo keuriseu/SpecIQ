@@ -123,11 +123,33 @@ public static class GeekbenchService
             throw new InvalidOperationException($"Installer exited with code {proc.ExitCode}.");
     }
 
+    private const string LicenseEmail = "geekbench@qualcomm.com";
+    private const string LicenseKey   = "ONGAL-XV7U5-ICW2I-XB67X-6HERZ-KFW2D-AXC7V-CVVMU-7Y6QI";
+
+    private static async Task ApplyLicenseAsync(string exePath, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo(exePath, $"--unlock {LicenseEmail} {LicenseKey}")
+        {
+            UseShellExecute        = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError  = true,
+            CreateNoWindow         = true,
+        };
+        using var proc = Process.Start(psi)
+            ?? throw new InvalidOperationException("Could not start Geekbench for licensing.");
+        await proc.WaitForExitAsync(ct);
+        // Non-zero exit = bad key or network failure; surface to caller
+        if (proc.ExitCode != 0)
+            throw new InvalidOperationException($"License activation failed (exit {proc.ExitCode}).");
+    }
+
     public static async Task<BenchmarkResult> RunAsync(
         string exePath,
         IProgress<string> progress,
         CancellationToken ct = default)
     {
+        await ApplyLicenseAsync(exePath, ct);
+
         var psi = new ProcessStartInfo(exePath, "--cpu")
         {
             UseShellExecute        = false,

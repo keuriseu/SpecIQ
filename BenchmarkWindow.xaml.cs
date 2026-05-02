@@ -108,7 +108,7 @@ public partial class BenchmarkWindow : Window
         if (_info.InstalledPath is not { } exePath) return;
 
         ShowPanel(RunningPanel);
-        RunPhaseText.Text    = "Starting…";
+        RunPhaseText.Text    = "Activating license…";
         RunWorkloadText.Text = "";
         _dotTimer.Start();
         _cts = new CancellationTokenSource();
@@ -121,8 +121,14 @@ public partial class BenchmarkWindow : Window
                     RunPhaseText.Text = "Single-Core";
                 else if (line.Contains("Multi-Core", StringComparison.OrdinalIgnoreCase))
                     RunPhaseText.Text = "Multi-Core";
-                else if (!line.Contains("Score") && !line.StartsWith("http") && line.Length < 60)
-                    RunWorkloadText.Text = line;
+                else
+                {
+                    // First real output line means licensing passed and benchmark started
+                    if (RunPhaseText.Text == "Activating license…")
+                        RunPhaseText.Text = "Starting…";
+                    if (!line.Contains("Score") && !line.StartsWith("http") && line.Length < 60)
+                        RunWorkloadText.Text = line;
+                }
             });
 
             var result = await GeekbenchService.RunAsync(exePath, progress, _cts.Token);
