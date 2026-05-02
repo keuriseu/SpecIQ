@@ -12,6 +12,7 @@ namespace SpecIQ;
 internal static class DevServer
 {
     private static HttpListener? _listener;
+    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = false };
 
     internal static void Start(int port = 5000)
     {
@@ -53,7 +54,7 @@ internal static class DevServer
     private static void WriteJson(HttpListenerContext ctx)
     {
         var stats = SystemStats.Snapshot;
-        var json = JsonSerializer.Serialize(stats, new JsonSerializerOptions { WriteIndented = false });
+        var json = JsonSerializer.Serialize(stats, JsonOpts);
         var bytes = Encoding.UTF8.GetBytes(json);
         ctx.Response.ContentType = "application/json";
         ctx.Response.Headers.Add("Access-Control-Allow-Origin", "*");

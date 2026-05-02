@@ -4,24 +4,48 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Color = System.Windows.Media.Color;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
-using System.Windows.Threading;
 using WinForms = System.Windows.Forms;
 
 namespace SpecIQ;
 
 public partial class MainWindow : Window
 {
+    // Frozen static brushes — created once, shared across all ticks
+    private static readonly SolidColorBrush BrushGreen  = Freeze(Color.FromRgb(0x4A, 0xDE, 0x80));
+    private static readonly SolidColorBrush BrushYellow = Freeze(Color.FromRgb(0xFB, 0xBF, 0x24));
+    private static readonly SolidColorBrush BrushRed    = Freeze(Color.FromRgb(0xF8, 0x71, 0x71));
+    private static readonly SolidColorBrush BrushWhite  = Freeze(Color.FromRgb(0xFF, 0xFF, 0xFF));
+    private static readonly SolidColorBrush BrushBlue   = Freeze(Color.FromRgb(0x60, 0xA5, 0xFA));
+    private static readonly SolidColorBrush BrushPurple = Freeze(Color.FromRgb(0xC0, 0x84, 0xFC));
+    private static readonly SolidColorBrush BrushOrange = Freeze(Color.FromRgb(0xFB, 0x92, 0x3C));
+    private static readonly SolidColorBrush BrushPink   = Freeze(Color.FromRgb(0xF4, 0x72, 0xB6));
+
+    private static SolidColorBrush Freeze(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+
+    private static SolidColorBrush LoadBrush(float pct, SolidColorBrush accent) =>
+        pct > 80 ? BrushRed : pct > 50 ? BrushYellow : accent;
+
     private readonly DispatcherTimer _timer;
     private readonly PerformanceCounter _cpuCounter;
     private long _lastBytesReceived;
     private long _lastBytesSent;
     private DateTime _lastNetworkCheck = DateTime.MinValue;
-    private readonly double _barMaxWidth = 120;
     private string? _npuCategory;
     private string? _npuCounterName;
     private List<PerformanceCounter> _gpuCounters = [];
+    private bool _gpuReady;
+
+    // Cached values shared across update methods within a single tick
+    private int _lastRamPct;
+    private WinForms.PowerStatus? _lastPower;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct MEMORYSTATUSEX
@@ -46,16 +70,23 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         _cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total", true);
-        _cpuCounter.NextValue(); // Prime the counter
+        _cpuCounter.NextValue();
 
         DetectNpuCounter();
-        InitGpuCounters();
 
-        _timer = new DispatcherTimer
-        {
-            Interval = TimeSpan.FromSeconds(1.5)
-        };
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
         _timer.Tick += Timer_Tick;
+
+        // Init GPU counters on background thread with 1s delay so primed values are valid
+        Task.Run(async () =>
+        {
+            await Task.Delay(1000);
+            InitGpuCounters();
+            _gpuReady = true;
+        });
+
+        // Pre-fetch battery capacity off the UI thread at startup
+        Task.Run(ReadBatteryCapacity);
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -75,15 +106,13 @@ public partial class MainWindow : Window
         Top = workArea.Top + 16;
     }
 
-    private bool _batteryFocusMode;
+    // ── Battery focus mode ────────────────────────────────────────────────
 
-    // Battery tracking for drain rate and session delta
+    private bool _batteryFocusMode;
     private int _sessionStartPct = -1;
     private DateTime _drainSampleTime = DateTime.MinValue;
     private int _drainSamplePct = -1;
     private double _drainRatePerHour = double.NaN;
-
-    // Battery capacity (read once — doesn't change at runtime)
     private int _batteryDesignMwh = -1;
     private int _batteryFullMwh = -1;
 
@@ -113,63 +142,39 @@ public partial class MainWindow : Window
         RootBorder.MinWidth = enterFocus ? 140 : 200;
 
         if (enterFocus)
-        {
-            if (_batteryDesignMwh < 0)
-                ReadBatteryCapacity();
-            UpdateBatteryFocus();
-        }
+            UpdateBatteryFocus(_lastPower ?? WinForms.SystemInformation.PowerStatus);
     }
 
     private void ReadBatteryCapacity()
     {
+        int design = -1, full = -1;
         try
         {
-            using var searcher = new System.Management.ManagementObjectSearcher(
-                @"root\WMI", "SELECT * FROM BatteryStaticData");
-            foreach (System.Management.ManagementObject obj in searcher.Get())
-            {
-                _batteryDesignMwh = Convert.ToInt32(obj["DesignedCapacity"]);
-                break;
-            }
+            using var s = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT DesignedCapacity FROM BatteryStaticData");
+            foreach (System.Management.ManagementObject o in s.Get()) { design = Convert.ToInt32(o["DesignedCapacity"]); break; }
         }
         catch { }
-
         try
         {
-            using var searcher = new System.Management.ManagementObjectSearcher(
-                @"root\WMI", "SELECT * FROM BatteryFullChargedCapacity");
-            foreach (System.Management.ManagementObject obj in searcher.Get())
-            {
-                _batteryFullMwh = Convert.ToInt32(obj["FullChargedCapacity"]);
-                break;
-            }
+            using var s = new System.Management.ManagementObjectSearcher(@"root\WMI", "SELECT FullChargedCapacity FROM BatteryFullChargedCapacity");
+            foreach (System.Management.ManagementObject o in s.Get()) { full = Convert.ToInt32(o["FullChargedCapacity"]); break; }
         }
         catch { }
+        Dispatcher.Invoke(() => { _batteryDesignMwh = design; _batteryFullMwh = full; });
     }
 
-    private void UpdateBatteryFocus()
+    private static int ClampBatteryPct(WinForms.PowerStatus power)
     {
-        var power = WinForms.SystemInformation.PowerStatus;
         var pct = (int)(power.BatteryLifePercent * 100);
-        if (pct > 100) pct = 100;
-        var charging = power.PowerLineStatus == WinForms.PowerLineStatus.Online;
+        return pct > 100 ? 100 : pct;
+    }
 
-        // Big percentage
-        BatteryFocusPct.Text = pct < 0 ? "--" : $"{pct}%";
-        BatteryFocusStatus.Text = charging ? "Charging" : "Battery";
-        BatteryFocusPct.Foreground = charging
-            ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80))
-            : pct <= 20
-                ? new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
-                : new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-
-        // Record session start
-        if (_sessionStartPct < 0 && pct >= 0)
-            _sessionStartPct = pct;
-
-        // Track drain rate — update sample when % drops on battery
+    private void TrackDrainRate(int pct, bool charging)
+    {
         if (!charging && pct >= 0)
         {
+            if (_sessionStartPct < 0) _sessionStartPct = pct;
+
             if (_drainSamplePct < 0)
             {
                 _drainSamplePct = pct;
@@ -183,77 +188,69 @@ public partial class MainWindow : Window
                 _drainSamplePct = pct;
                 _drainSampleTime = DateTime.Now;
             }
+            else if (double.IsNaN(_drainRatePerHour))
+            {
+                // No drop yet — estimate from elapsed time as a fallback
+                var elapsed = (DateTime.Now - _drainSampleTime).TotalHours;
+                if (elapsed >= 0.25) // at least 15 min of data
+                    _drainRatePerHour = 0; // still 0% drop, so rate is effectively 0
+            }
         }
         else
         {
-            // Reset drain tracking when plugged in
             _drainSamplePct = -1;
             _drainRatePerHour = double.NaN;
         }
+    }
 
-        // Drain rate
-        if (!charging && !double.IsNaN(_drainRatePerHour))
-            BatteryFocusDrain.Text = $"↓ {_drainRatePerHour:F1}%/hr";
-        else if (charging)
-            BatteryFocusDrain.Text = "↑ Charging";
-        else
-            BatteryFocusDrain.Text = "-- %/hr";
+    private void UpdateBatteryFocus(WinForms.PowerStatus power)
+    {
+        var pct = ClampBatteryPct(power);
+        var charging = power.PowerLineStatus == WinForms.PowerLineStatus.Online;
 
-        // Time remaining
+        BatteryFocusPct.Text = pct < 0 ? "--" : $"{pct}%";
+        BatteryFocusStatus.Text = charging ? "Charging" : "Battery";
+        BatteryFocusPct.Foreground = charging ? BrushGreen : pct <= 20 ? BrushRed : BrushWhite;
+
+        TrackDrainRate(pct, charging);
+
+        BatteryFocusDrain.Text = charging ? "↑ Charging"
+            : !double.IsNaN(_drainRatePerHour) ? $"↓ {_drainRatePerHour:F1}%/hr"
+            : "-- %/hr";
+
         var secsLeft = power.BatteryLifeRemaining;
         if (secsLeft > 0)
         {
             var t = TimeSpan.FromSeconds(secsLeft);
-            BatteryFocusTime.Text = t.Hours > 0
-                ? $"{t.Hours}h {t.Minutes:D2}m"
-                : $"{t.Minutes}m";
+            BatteryFocusTime.Text = t.Hours > 0 ? $"{t.Hours}h {t.Minutes:D2}m" : $"{t.Minutes}m";
         }
         else
         {
             BatteryFocusTime.Text = charging ? "Plugged in" : "--";
         }
 
-        // Session drain
         if (_sessionStartPct >= 0 && pct >= 0)
         {
             var delta = _sessionStartPct - pct;
-            BatteryFocusSession.Text = delta == 0
-                ? "No change this session"
-                : delta > 0
-                    ? $"−{delta}% this session"
-                    : $"+{-delta}% this session";
+            BatteryFocusSession.Text = delta == 0 ? "No change this session"
+                : delta > 0 ? $"−{delta}% this session"
+                : $"+{-delta}% this session";
         }
         else
         {
             BatteryFocusSession.Text = "-- this session";
         }
 
-        // Capacity & health
-        if (_batteryFullMwh > 0)
-        {
-            var fullWh = _batteryFullMwh / 1000.0;
-            BatteryFocusCapacity.Text = $"{fullWh:F1} Wh";
-        }
-        else
-        {
-            BatteryFocusCapacity.Text = "--";
-        }
+        BatteryFocusCapacity.Text = _batteryFullMwh > 0 ? $"{_batteryFullMwh / 1000.0:F1} Wh" : "--";
 
         if (_batteryDesignMwh > 0)
         {
-            var designWh = _batteryDesignMwh / 1000.0;
-            BatteryFocusDesign.Text = $"/ {designWh:F1} Wh design";
-
+            BatteryFocusDesign.Text = $"/ {_batteryDesignMwh / 1000.0:F1} Wh design";
             if (_batteryFullMwh > 0)
             {
-                var health = (int)Math.Round(_batteryFullMwh * 100.0 / _batteryDesignMwh);
-                health = Math.Clamp(health, 0, 100);
+                var health = Math.Clamp((int)Math.Round(_batteryFullMwh * 100.0 / _batteryDesignMwh), 0, 100);
                 BatteryFocusHealth.Text = $"{health}% health";
-                BatteryFocusHealth.Foreground = health >= 80
-                    ? new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80))
-                    : health >= 60
-                        ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
-                        : new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
+                BatteryFocusHealth.Foreground = health >= 80 ? BrushGreen : health >= 60 ? BrushYellow : BrushRed;
             }
         }
         else
@@ -263,81 +260,69 @@ public partial class MainWindow : Window
         }
     }
 
-    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        var animation = new DoubleAnimation(0.15, TimeSpan.FromMilliseconds(200))
-        {
-            EasingFunction = new QuadraticEase()
-        };
-        RootBorder.BeginAnimation(OpacityProperty, animation);
-    }
+    // ── Hover fade ────────────────────────────────────────────────────────
 
-    private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        var animation = new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(300))
-        {
-            EasingFunction = new QuadraticEase()
-        };
-        RootBorder.BeginAnimation(OpacityProperty, animation);
-    }
+    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) =>
+        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(0.15, TimeSpan.FromMilliseconds(200)) { EasingFunction = new QuadraticEase() });
 
-    private void Timer_Tick(object? sender, EventArgs e)
-    {
-        UpdateAll();
-    }
+    private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) =>
+        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(300)) { EasingFunction = new QuadraticEase() });
+
+    // ── Update loop ───────────────────────────────────────────────────────
+
+    private void Timer_Tick(object? sender, EventArgs e) => UpdateAll();
 
     private void UpdateAll()
     {
+        _lastPower = WinForms.SystemInformation.PowerStatus;
+
         if (_batteryFocusMode)
         {
-            UpdateBatteryFocus();
+            UpdateBatteryFocus(_lastPower);
             return;
         }
 
         UpdateDateTime();
-        UpdateBattery();
+        UpdateBattery(_lastPower);
         UpdateCpu();
         UpdateRam();
         UpdateGpu();
         UpdateNpu();
         UpdateNetwork();
 #if DEBUG
-        PublishStats();
+        PublishStats(_lastPower);
 #endif
     }
 
 #if DEBUG
-    private void PublishStats()
+    private static int ParsePct(string text) =>
+        int.TryParse(text.TrimEnd('%'), out var v) ? v : 0;
+
+    private void PublishStats(WinForms.PowerStatus power)
     {
-        var power = WinForms.SystemInformation.PowerStatus;
-        var batPct = (int)(power.BatteryLifePercent * 100);
-
+        var batPct = ClampBatteryPct(power);
         var ramParts = RamText.Text.Split('/');
-        var ramUsed = ramParts.Length > 0 ? ramParts[0].Trim() : "--";
-        var ramTotal = ramParts.Length > 1 ? ramParts[1].Replace("GB", "").Trim() : "--";
-
-        var mem = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-        var ramPct = GlobalMemoryStatusEx(ref mem) ? (int)mem.dwMemoryLoad : 0;
 
         SystemStats.Snapshot = new StatsSnapshot
         {
             Time = TimeText.Text,
             Date = DateText.Text,
-            BatteryPct = batPct > 100 || batPct < 0 ? -1 : batPct,
+            BatteryPct = batPct < 0 ? -1 : batPct,
             BatteryCharging = power.PowerLineStatus == WinForms.PowerLineStatus.Online,
-            CpuPct = int.TryParse(CpuText.Text.TrimEnd('%'), out var c) ? c : 0,
-            RamPct = ramPct,
-            RamUsed = ramUsed,
-            RamTotal = ramTotal,
-            GpuPct = int.TryParse(GpuText.Text.TrimEnd('%'), out var g) ? g : 0,
-            NpuPct = NpuText.Text == "N/A" ? -1
-                     : int.TryParse(NpuText.Text.TrimEnd('%'), out var n) ? n : -1,
+            CpuPct = ParsePct(CpuText.Text),
+            RamPct = _lastRamPct,
+            RamUsed = ramParts.Length > 0 ? ramParts[0].Trim() : "--",
+            RamTotal = ramParts.Length > 1 ? ramParts[1].Replace("GB", "").Trim() : "--",
+            GpuPct = ParsePct(GpuText.Text),
+            NpuPct = NpuText.Text == "N/A" ? -1 : ParsePct(NpuText.Text),
             NetworkName = NetworkName.Text,
             NetworkUp = NetworkUpText.Text.Replace("↑ ", ""),
             NetworkDown = NetworkDownText.Text.Replace("↓ ", ""),
         };
     }
 #endif
+
+    // ── Stat updaters ─────────────────────────────────────────────────────
 
     private void UpdateDateTime()
     {
@@ -346,12 +331,10 @@ public partial class MainWindow : Window
         DateText.Text = now.ToString("ddd, MMM d");
     }
 
-    private void UpdateBattery()
+    private void UpdateBattery(WinForms.PowerStatus power)
     {
-        var power = WinForms.SystemInformation.PowerStatus;
-        var percent = (int)(power.BatteryLifePercent * 100);
+        var percent = ClampBatteryPct(power);
 
-        if (percent > 100) percent = 100;
         if (percent < 0)
         {
             BatteryText.Text = "N/A";
@@ -360,28 +343,29 @@ public partial class MainWindow : Window
         }
 
         BatteryText.Text = $"{percent}%";
-        BatteryBar.Width = _barMaxWidth * percent / 100.0;
+        BatteryBar.Width = BatteryBar.ActualWidth > 0
+            ? BatteryBar.ActualWidth * percent / 100.0
+            : percent;
 
-        // Color based on level
         if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
         {
-            BatteryBar.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80)); // Green
-            BatteryIcon.Text = "\uEA93"; // Charging icon
+            BatteryBar.Background = BrushGreen;
+            BatteryIcon.Text = "";
         }
         else if (percent <= 20)
         {
-            BatteryBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71)); // Red
-            BatteryIcon.Text = "\uE996";
+            BatteryBar.Background = BrushRed;
+            BatteryIcon.Text = "";
         }
         else if (percent <= 50)
         {
-            BatteryBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24)); // Yellow
-            BatteryIcon.Text = "\uE996";
+            BatteryBar.Background = BrushYellow;
+            BatteryIcon.Text = "";
         }
         else
         {
-            BatteryBar.Background = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80)); // Green
-            BatteryIcon.Text = "\uE996";
+            BatteryBar.Background = BrushGreen;
+            BatteryIcon.Text = "";
         }
     }
 
@@ -389,46 +373,30 @@ public partial class MainWindow : Window
     {
         try
         {
-            var cpuPercent = _cpuCounter.NextValue();
-            if (cpuPercent > 100) cpuPercent = 100;
-            if (cpuPercent < 0) cpuPercent = 0;
-
-            CpuText.Text = $"{cpuPercent:F0}%";
-            CpuBar.Width = _barMaxWidth * cpuPercent / 100.0;
-
-            // Color based on load
-            if (cpuPercent > 80)
-                CpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
-            else if (cpuPercent > 50)
-                CpuBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-            else
-                CpuBar.Background = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
+            var pct = Math.Clamp(_cpuCounter.NextValue(), 0f, 100f);
+            CpuText.Text = $"{pct:F0}%";
+            CpuBar.Width = CpuBar.ActualWidth > 0
+                ? CpuBar.ActualWidth * pct / 100.0
+                : pct;
+            CpuBar.Background = LoadBrush(pct, BrushBlue);
         }
-        catch
-        {
-            CpuText.Text = "N/A";
-        }
+        catch { CpuText.Text = "N/A"; }
     }
 
     private void UpdateRam()
     {
         var mem = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf<MEMORYSTATUSEX>() };
-        if (GlobalMemoryStatusEx(ref mem))
-        {
-            var totalGb = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
-            var usedGb = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
-            var percent = mem.dwMemoryLoad;
+        if (!GlobalMemoryStatusEx(ref mem)) return;
 
-            RamText.Text = $"{usedGb:F1}/{totalGb:F0} GB";
-            RamBar.Width = _barMaxWidth * percent / 100.0;
+        var totalGb = mem.ullTotalPhys / (1024.0 * 1024 * 1024);
+        var usedGb  = (mem.ullTotalPhys - mem.ullAvailPhys) / (1024.0 * 1024 * 1024);
+        _lastRamPct = (int)mem.dwMemoryLoad;
 
-            if (percent > 85)
-                RamBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
-            else if (percent > 60)
-                RamBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-            else
-                RamBar.Background = new SolidColorBrush(Color.FromRgb(0xC0, 0x84, 0xFC));
-        }
+        RamText.Text = $"{usedGb:F1}/{totalGb:F0} GB";
+        RamBar.Width = RamBar.ActualWidth > 0
+            ? RamBar.ActualWidth * _lastRamPct / 100.0
+            : _lastRamPct;
+        RamBar.Background = LoadBrush(_lastRamPct, BrushPurple);
     }
 
     private void InitGpuCounters()
@@ -436,54 +404,41 @@ public partial class MainWindow : Window
         try
         {
             var category = new PerformanceCounterCategory("GPU Engine");
-            var instances = category.GetInstanceNames()
+            _gpuCounters = category.GetInstanceNames()
                 .Where(n => n.Contains("engtype_3D") || n.Contains("engtype_Graphics"))
-                .ToList();
-
-            _gpuCounters = instances
                 .Select(n => new PerformanceCounter("GPU Engine", "Utilization Percentage", n, true))
                 .ToList();
-
-            // Prime all counters so the next read returns a real value
             foreach (var c in _gpuCounters) c.NextValue();
         }
-        catch
-        {
-            _gpuCounters = [];
-        }
+        catch { _gpuCounters = []; }
     }
 
     private void UpdateGpu()
     {
+        if (!_gpuReady || _gpuCounters.Count == 0)
+        {
+            GpuText.Text = _gpuReady ? "N/A" : "--";
+            GpuBar.Width = 0;
+            return;
+        }
+
         try
         {
-            if (_gpuCounters.Count == 0)
-            {
-                GpuText.Text = "N/A";
-                GpuBar.Width = 0;
-                return;
-            }
+            float total = 0;
+            foreach (var c in _gpuCounters) total += c.NextValue();
+            total = Math.Clamp(total, 0f, 100f);
 
-            float totalGpu = 0;
-            foreach (var c in _gpuCounters)
-                totalGpu += c.NextValue();
-
-            totalGpu = Math.Clamp(totalGpu, 0f, 100f);
-            GpuText.Text = $"{totalGpu:F0}%";
-            GpuBar.Width = _barMaxWidth * totalGpu / 100.0;
-
-            if (totalGpu > 80)
-                GpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
-            else if (totalGpu > 50)
-                GpuBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-            else
-                GpuBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0x92, 0x3C));
+            GpuText.Text = $"{total:F0}%";
+            GpuBar.Width = GpuBar.ActualWidth > 0
+                ? GpuBar.ActualWidth * total / 100.0
+                : total;
+            GpuBar.Background = LoadBrush(total, BrushOrange);
         }
         catch
         {
-            // Counters may become invalid if a GPU process exits; re-init next cycle
             foreach (var c in _gpuCounters) c.Dispose();
-            InitGpuCounters();
+            _gpuReady = false;
+            Task.Run(async () => { await Task.Delay(1000); InitGpuCounters(); _gpuReady = true; });
             GpuText.Text = "0%";
             GpuBar.Width = 0;
         }
@@ -491,7 +446,6 @@ public partial class MainWindow : Window
 
     private void DetectNpuCounter()
     {
-        // Known NPU performance counter category names across vendors
         var candidates = new[]
         {
             ("NPU", "Utilization Percentage"),
@@ -520,50 +474,32 @@ public partial class MainWindow : Window
 
     private void UpdateNpu()
     {
-        if (_npuCategory == null)
-        {
-            NpuText.Text = "N/A";
-            NpuBar.Width = 0;
-            return;
-        }
+        if (_npuCategory == null) { NpuText.Text = "N/A"; NpuBar.Width = 0; return; }
 
         try
         {
             var category = new PerformanceCounterCategory(_npuCategory);
-            var instances = category.GetInstanceNames();
             float total = 0;
             int count = 0;
 
-            foreach (var instance in instances)
+            foreach (var instance in category.GetInstanceNames())
             {
                 var counters = category.GetCounters(instance);
                 foreach (var c in counters)
                 {
-                    if (c.CounterName == _npuCounterName)
-                    {
-                        total += c.NextValue();
-                        count++;
-                    }
+                    if (c.CounterName == _npuCounterName) { total += c.NextValue(); count++; }
                     c.Dispose();
                 }
             }
 
             float util = count > 0 ? Math.Min(total, 100f) : 0f;
             NpuText.Text = $"{util:F0}%";
-            NpuBar.Width = _barMaxWidth * util / 100.0;
-
-            if (util > 80)
-                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71));
-            else if (util > 50)
-                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24));
-            else
-                NpuBar.Background = new SolidColorBrush(Color.FromRgb(0xF4, 0x72, 0xB6));
+            NpuBar.Width = NpuBar.ActualWidth > 0
+                ? NpuBar.ActualWidth * util / 100.0
+                : util;
+            NpuBar.Background = LoadBrush(util, BrushPink);
         }
-        catch
-        {
-            NpuText.Text = "N/A";
-            NpuBar.Width = 0;
-        }
+        catch { NpuText.Text = "N/A"; NpuBar.Width = 0; }
     }
 
     private void UpdateNetwork()
@@ -578,24 +514,15 @@ public partial class MainWindow : Window
             if (interfaces.Count == 0)
             {
                 NetworkName.Text = "Disconnected";
-                NetworkIcon.Text = "\uE871"; // No network
+                NetworkIcon.Text = "";
                 NetworkUpText.Text = "";
                 NetworkDownText.Text = "";
                 return;
             }
 
-            var primary = interfaces
-                .OrderByDescending(n => n.GetIPv4Statistics().BytesReceived)
-                .First();
-
-            NetworkName.Text = primary.Name.Length > 18
-                ? primary.Name[..18] + "..."
-                : primary.Name;
-
-            if (primary.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
-                NetworkIcon.Text = "\uE701"; // WiFi
-            else
-                NetworkIcon.Text = "\uE839"; // Ethernet
+            var primary = interfaces.OrderByDescending(n => n.GetIPv4Statistics().BytesReceived).First();
+            NetworkName.Text = primary.Name.Length > 18 ? primary.Name[..18] + "..." : primary.Name;
+            NetworkIcon.Text = primary.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ? "" : "";
 
             var stats = primary.GetIPv4Statistics();
             var now = DateTime.Now;
@@ -605,11 +532,8 @@ public partial class MainWindow : Window
                 var elapsed = (now - _lastNetworkCheck).TotalSeconds;
                 if (elapsed > 0)
                 {
-                    var downSpeed = (stats.BytesReceived - _lastBytesReceived) / elapsed;
-                    var upSpeed = (stats.BytesSent - _lastBytesSent) / elapsed;
-
-                    NetworkDownText.Text = $"↓ {FormatSpeed(downSpeed)}";
-                    NetworkUpText.Text = $"↑ {FormatSpeed(upSpeed)}";
+                    NetworkDownText.Text = $"↓ {FormatSpeed((stats.BytesReceived - _lastBytesReceived) / elapsed)}";
+                    NetworkUpText.Text   = $"↑ {FormatSpeed((stats.BytesSent - _lastBytesSent) / elapsed)}";
                 }
             }
 
@@ -617,20 +541,13 @@ public partial class MainWindow : Window
             _lastBytesSent = stats.BytesSent;
             _lastNetworkCheck = now;
         }
-        catch
-        {
-            NetworkName.Text = "Error";
-        }
+        catch { NetworkName.Text = "Error"; }
     }
 
-    private static string FormatSpeed(double bytesPerSecond)
-    {
-        if (bytesPerSecond >= 1_000_000)
-            return $"{bytesPerSecond / 1_000_000:F1} MB/s";
-        if (bytesPerSecond >= 1_000)
-            return $"{bytesPerSecond / 1_000:F0} KB/s";
-        return $"{bytesPerSecond:F0} B/s";
-    }
+    private static string FormatSpeed(double bytesPerSecond) =>
+        bytesPerSecond >= 1_000_000 ? $"{bytesPerSecond / 1_000_000:F1} MB/s" :
+        bytesPerSecond >= 1_000     ? $"{bytesPerSecond / 1_000:F0} KB/s" :
+                                      $"{bytesPerSecond:F0} B/s";
 
     protected override void OnClosed(EventArgs e)
     {

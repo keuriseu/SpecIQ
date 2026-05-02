@@ -6,13 +6,12 @@ namespace SpecIQ;
 /// </summary>
 internal static class SystemStats
 {
-    private static readonly object _lock = new();
-    private static StatsSnapshot _current = new();
+    private static volatile StatsSnapshot _current = new();
 
     internal static StatsSnapshot Snapshot
     {
-        get { lock (_lock) return _current; }
-        set { lock (_lock) _current = value; }
+        get => _current;
+        set => _current = value;
     }
 }
 
