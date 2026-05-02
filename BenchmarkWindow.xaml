@@ -133,18 +133,31 @@
 
             <!-- ── Running panel ── -->
             <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
-                <TextBlock x:Name="RunPhaseText" Text="Running Single-Core…"
-                           Style="{StaticResource Value}" HorizontalAlignment="Center"
-                           Margin="0,0,0,6"/>
-                <TextBlock x:Name="RunWorkloadText" Text="—" Style="{StaticResource Label}"
-                           HorizontalAlignment="Center" FontSize="11" Margin="0,0,0,14"/>
 
-                <!-- Indeterminate progress dots -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,16">
-                    <Ellipse x:Name="Dot1" Width="6" Height="6" Fill="#3B82F6" Margin="4,0"/>
-                    <Ellipse x:Name="Dot2" Width="6" Height="6" Fill="#3B82F6" Margin="4,0" Opacity="0.5"/>
-                    <Ellipse x:Name="Dot3" Width="6" Height="6" Fill="#3B82F6" Margin="4,0" Opacity="0.25"/>
-                </StackPanel>
+                <!-- Phase + dots on one line -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="RunPhaseText" Grid.Column="0" Text="Starting…"
+                               Style="{StaticResource Value}" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse x:Name="Dot1" Width="5" Height="5" Fill="#3B82F6" Margin="3,0"/>
+                        <Ellipse x:Name="Dot2" Width="5" Height="5" Fill="#3B82F6" Margin="3,0" Opacity="0.5"/>
+                        <Ellipse x:Name="Dot3" Width="5" Height="5" Fill="#3B82F6" Margin="3,0" Opacity="0.25"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Live CLI output log -->
+                <Border Background="#12FFFFFF" CornerRadius="6" Height="180" Margin="0,0,0,12">
+                    <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="10"
+                                   Foreground="#A0FFFFFF" TextWrapping="Wrap"
+                                   Padding="8" LineHeight="16"/>
+                    </ScrollViewer>
+                </Border>
 
                 <Button Content="Cancel" Click="Cancel_Click"
                         Background="#30FFFFFF" Style="{StaticResource Btn}"
