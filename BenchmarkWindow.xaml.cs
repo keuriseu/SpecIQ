@@ -43,7 +43,15 @@ public partial class BenchmarkWindow : Window
         ShowPanel(CheckingPanel);
         _info = await GeekbenchService.CheckAsync();
 
-        StatusText.Text = _info.StatusText;
+        // Show full version in title bar
+        TitleVersionText.Text = _info.InstalledVersion != null
+            ? $"GEEKBENCH {_info.InstalledVersion}"
+            : "GEEKBENCH";
+
+        // Status shows update state only (version is already in title)
+        StatusText.Text = _info.UpdateAvailable  ? $"v{_info.LatestVersion} available"
+                        : _info.IsInstalled       ? "Up to date"
+                                                  : "Not installed";
 
         if (_info.IsInstalled)
         {
@@ -101,7 +109,10 @@ public partial class BenchmarkWindow : Window
 
     // ── Run benchmark ─────────────────────────────────────────────────────
 
-    private async void RunBenchmark_Click(object sender, RoutedEventArgs e)
+    private void RunCpuBenchmark_Click(object sender, RoutedEventArgs e) => _ = RunBenchmarkAsync(gpu: false);
+    private void RunGpuBenchmark_Click(object sender, RoutedEventArgs e) => _ = RunBenchmarkAsync(gpu: true);
+
+    private async Task RunBenchmarkAsync(bool gpu)
     {
         _info ??= await GeekbenchService.CheckAsync();
         if (_info.InstalledPath is not { } exePath) return;
@@ -120,6 +131,10 @@ public partial class BenchmarkWindow : Window
                     RunPhaseText.Text = "Single-Core";
                 else if (line.Contains("Multi-Core", StringComparison.OrdinalIgnoreCase))
                     RunPhaseText.Text = "Multi-Core";
+                else if (line.Contains("OpenCL", StringComparison.OrdinalIgnoreCase) ||
+                         line.Contains("Vulkan",  StringComparison.OrdinalIgnoreCase) ||
+                         line.Contains("Metal",   StringComparison.OrdinalIgnoreCase))
+                    RunPhaseText.Text = line.Trim();
                 else if (RunPhaseText.Text == "Activating license…")
                     RunPhaseText.Text = "Starting…";
 
@@ -127,7 +142,7 @@ public partial class BenchmarkWindow : Window
                 LogScroll.ScrollToBottom();
             });
 
-            var result = await GeekbenchService.RunAsync(exePath, progress, _cts.Token);
+            var result = await GeekbenchService.RunAsync(exePath, progress, gpu, _cts.Token);
             ShowResult(result);
         }
         catch (OperationCanceledException)

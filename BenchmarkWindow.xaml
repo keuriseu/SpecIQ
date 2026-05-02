@@ -67,8 +67,8 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="GEEKBENCH 6" FontFamily="Segoe UI" FontSize="11"
-                               FontWeight="Bold" Foreground="#80FFFFFF"/>
+                    <TextBlock x:Name="TitleVersionText" Text="GEEKBENCH" FontFamily="Segoe UI"
+                               FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF"/>
                 </StackPanel>
                 <Button Grid.Column="1" Content="✕" Click="Close_Click"
                         Background="Transparent" Foreground="#60FFFFFF"
@@ -108,13 +108,18 @@
                             Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
                 </StackPanel>
 
-                <StackPanel x:Name="RunRow" Orientation="Horizontal"
-                            HorizontalAlignment="Center" Visibility="Collapsed">
-                    <Button x:Name="UpdateBtn" Content="Update" Click="Install_Click"
-                            Background="#30FFFFFF" Style="{StaticResource Btn}" Margin="0,0,8,0"
-                            Visibility="Collapsed"/>
-                    <Button Content="Run CPU Benchmark" Click="RunBenchmark_Click"
-                            Background="#3B82F6" Style="{StaticResource Btn}"/>
+                <StackPanel x:Name="RunRow" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <Button x:Name="UpdateBtn" Content="Update" Click="Install_Click"
+                                Background="#30FFFFFF" Style="{StaticResource Btn}" Margin="0,0,8,0"
+                                Visibility="Collapsed"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="CPU" Click="RunCpuBenchmark_Click"
+                                Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,6,0"/>
+                        <Button Content="GPU" Click="RunGpuBenchmark_Click"
+                                Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                    </StackPanel>
                 </StackPanel>
             </StackPanel>
 
@@ -196,7 +201,7 @@
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="Run Again" Click="RunBenchmark_Click"
+                    <Button Content="Run Again" Click="RunCpuBenchmark_Click"
                             Background="#30FFFFFF" Style="{StaticResource Btn}"/>
                 </StackPanel>
             </StackPanel>

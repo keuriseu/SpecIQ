@@ -146,11 +146,13 @@ public static class GeekbenchService
     public static async Task<BenchmarkResult> RunAsync(
         string exePath,
         IProgress<string> progress,
+        bool gpu = false,
         CancellationToken ct = default)
     {
         await ApplyLicenseAsync(exePath, ct);
 
-        var psi = new ProcessStartInfo(exePath, "--cpu --no-upload")
+        var args = gpu ? "--gpu --no-upload" : "--cpu --no-upload";
+        var psi = new ProcessStartInfo(exePath, args)
         {
             UseShellExecute        = false,
             RedirectStandardOutput = true,
@@ -189,11 +191,17 @@ public static class GeekbenchService
         foreach (var line in lines)
         {
             var t = line.Trim();
+
+            // CPU scores
             var m = Regex.Match(t, @"Single-Core Score\s+(\d+)");
-            if (m.Success) single = int.Parse(m.Groups[1].Value);
+            if (m.Success) { single = int.Parse(m.Groups[1].Value); continue; }
 
             m = Regex.Match(t, @"Multi-Core Score\s+(\d+)");
-            if (m.Success) multi = int.Parse(m.Groups[1].Value);
+            if (m.Success) { multi = int.Parse(m.Groups[1].Value); continue; }
+
+            // GPU scores (OpenCL / Vulkan — reported as single value each)
+            m = Regex.Match(t, @"(?:OpenCL|Vulkan|Metal) Score\s+(\d+)");
+            if (m.Success) { single = int.Parse(m.Groups[1].Value); continue; }
 
             if (t.StartsWith("https://browser.geekbench.com/")) url = t;
         }
