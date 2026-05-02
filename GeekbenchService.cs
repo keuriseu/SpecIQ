@@ -150,7 +150,7 @@ public static class GeekbenchService
     {
         await ApplyLicenseAsync(exePath, ct);
 
-        var psi = new ProcessStartInfo(exePath, "--cpu")
+        var psi = new ProcessStartInfo(exePath, "--cpu --no-upload")
         {
             UseShellExecute        = false,
             RedirectStandardOutput = true,

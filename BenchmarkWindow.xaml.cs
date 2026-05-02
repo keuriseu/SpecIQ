@@ -12,7 +12,6 @@ public partial class BenchmarkWindow : Window
     private CancellationTokenSource? _cts;
     private readonly DispatcherTimer _dotTimer;
     private int _dotFrame;
-    private string? _resultUrl;
 
     public BenchmarkWindow()
     {
@@ -150,11 +149,9 @@ public partial class BenchmarkWindow : Window
     private void ShowResult(BenchmarkResult result)
     {
         _dotTimer.Stop();
-        _resultUrl = result.ResultUrl;
 
         ResultSingle.Text = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
         ResultMulti.Text  = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
-        ViewResultsBtn.Visibility = result.ResultUrl != null ? Visibility.Visible : Visibility.Collapsed;
 
         ShowPanel(ResultPanel);
 
@@ -168,12 +165,6 @@ public partial class BenchmarkWindow : Window
         _cts?.Cancel();
         _dotTimer.Stop();
         ShowPanel(ReadyPanel);
-    }
-
-    private void ViewResults_Click(object sender, RoutedEventArgs e)
-    {
-        if (_resultUrl != null)
-            Process.Start(new ProcessStartInfo(_resultUrl) { UseShellExecute = true });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
