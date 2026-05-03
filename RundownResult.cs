@@ -62,10 +62,21 @@ public class RundownResult
         sb.AppendLine();
         if (IsStress)
         {
-            sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  {"GPU Vulkan",-12}  Battery  Elapsed");
-            sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
-            foreach (var e in Entries)
-                sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.GpuVulkanScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+            var hasVulkan = Entries.Any(e => e.GpuVulkanScore > 0);
+            if (hasVulkan)
+            {
+                sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  {"GPU Vulkan",-12}  Battery  Elapsed");
+                sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
+                foreach (var e in Entries)
+                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.GpuVulkanScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+            }
+            else
+            {
+                sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  Battery  Elapsed");
+                sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
+                foreach (var e in Entries)
+                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+            }
         }
         else
         {

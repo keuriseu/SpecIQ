@@ -218,10 +218,13 @@ public partial class RundownWindow : Window
 
         if (result.IsStress && result.Entries.Count > 0)
         {
+            var hasVulkan = result.Entries.Any(e => e.GpuVulkanScore > 0);
             ResAvgCpuSingle.Text  = $"{(int)result.Entries.Average(e => e.SingleScore):N0}";
             ResAvgCpuMulti.Text   = $"{(int)result.Entries.Average(e => e.MultiScore):N0}";
-            ResAvgGpuOpenCl.Text  = $"{(int)result.Entries.Average(e => e.GpuOpenClScore):N0}";
-            ResAvgGpuVulkan.Text  = $"{(int)result.Entries.Average(e => e.GpuVulkanScore):N0}";
+            ResAvgGpuOpenCl.Text  = result.Entries.Any(e => e.GpuOpenClScore > 0)
+                                    ? $"{(int)result.Entries.Average(e => e.GpuOpenClScore):N0}" : "N/A";
+            ResAvgGpuVulkan.Text  = hasVulkan
+                                    ? $"{(int)result.Entries.Average(e => e.GpuVulkanScore):N0}" : "N/A";
             StressStatsRow.Visibility  = Visibility.Visible;
             RegularStatsRow.Visibility = Visibility.Collapsed;
         }
@@ -376,9 +379,10 @@ public partial class RundownWindow : Window
 
         if (result.IsStress)
         {
-            // ── Stress: 4 lines — left axis = CPU, right axis = GPU ───────
-            var maxCpu = Math.Max(entries.Max(e => e.SingleScore), entries.Max(e => e.MultiScore)) * 1.08;
-            var maxGpu = Math.Max(entries.Max(e => e.GpuOpenClScore), entries.Max(e => e.GpuVulkanScore)) * 1.08;
+            // ── Stress: 2-4 lines — left axis = CPU, right axis = GPU ─────
+            var hasVulkan = entries.Any(e => e.GpuVulkanScore > 0);
+            var maxCpu    = Math.Max(entries.Max(e => e.SingleScore), entries.Max(e => e.MultiScore)) * 1.08;
+            var maxGpu    = entries.Max(e => Math.Max(e.GpuOpenClScore, e.GpuVulkanScore)) * 1.08;
 
             double PyCpu(double s) => maxCpu > 0 ? padT + (1 - s / maxCpu) * plotH : padT + plotH;
             double PyGpu(double s) => maxGpu > 0 ? padT + (1 - s / maxGpu) * plotH : padT + plotH;
@@ -391,13 +395,14 @@ public partial class RundownWindow : Window
                     AddYLabel(maxGpu * (4 - i) / 4.0, padT + plotH * i / 4.0, leftSide: false, green);
             }
 
-            // Lines back-to-front: GPU Vulkan → GPU OpenCL → CPU Multi → CPU Single
-            AddLine(e => new Point(Px(e.ElapsedSeconds), PyGpu(e.GpuVulkanScore)), purple);
+            // Lines back-to-front: GPU Vulkan (if present) → GPU OpenCL → CPU Multi → CPU Single
+            if (hasVulkan)
+                AddLine(e => new Point(Px(e.ElapsedSeconds), PyGpu(e.GpuVulkanScore)), purple);
             AddLine(e => new Point(Px(e.ElapsedSeconds), PyGpu(e.GpuOpenClScore)), green);
             AddLine(e => new Point(Px(e.ElapsedSeconds), PyCpu(e.MultiScore)),     orange);
             AddLine(e => new Point(Px(e.ElapsedSeconds), PyCpu(e.SingleScore)),    blue);
 
-            // Dots: battery-colored, 4 per entry
+            // Dots: battery-colored
             foreach (var entry in entries)
             {
                 var dotColor = entry.BatteryPct > 50 ? Color.FromRgb(0x4A, 0xDE, 0x80)
@@ -405,12 +410,13 @@ public partial class RundownWindow : Window
                                                      : Color.FromRgb(0xF8, 0x71, 0x71);
                 var fill = new SolidColorBrush(dotColor);
                 var x    = Px(entry.ElapsedSeconds);
-                AddDot(x, PyCpu(entry.SingleScore),    fill, r: 3.0);
-                AddDot(x, PyCpu(entry.MultiScore),     fill, r: 3.0);
+                AddDot(x, PyCpu(entry.SingleScore), fill, r: 3.0);
+                AddDot(x, PyCpu(entry.MultiScore),  fill, r: 3.0);
                 if (maxGpu > 0)
                 {
                     AddDot(x, PyGpu(entry.GpuOpenClScore), fill, r: 3.0);
-                    AddDot(x, PyGpu(entry.GpuVulkanScore), fill, r: 3.0);
+                    if (hasVulkan)
+                        AddDot(x, PyGpu(entry.GpuVulkanScore), fill, r: 3.0);
                 }
             }
         }
