@@ -254,8 +254,8 @@ public static class GeekbenchService
         // --vulkan runs the Vulkan GPU workload; --gpu runs OpenCL; --cpu runs CPU.
         // GPU processes need a real desktop window — CreateNoWindow suppresses the
         // Vulkan context and causes it to silently skip.
-        var args = vulkan ? "--vulkan --no-upload"
-                 : gpu    ? "--gpu --no-upload"
+        var args = vulkan ? "--gpu Vulkan --no-upload"
+                 : gpu    ? "--gpu OpenCL --no-upload"
                           : "--cpu --no-upload";
         var psi = new ProcessStartInfo(exePath, args)
         {
