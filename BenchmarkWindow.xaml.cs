@@ -112,6 +112,12 @@ public partial class BenchmarkWindow : Window
     private void RunCpuBenchmark_Click(object sender, RoutedEventArgs e) => _ = RunBenchmarkAsync(gpu: false);
     private void RunGpuBenchmark_Click(object sender, RoutedEventArgs e) => _ = RunBenchmarkAsync(gpu: true);
 
+    private void Rundown_Click(object sender, RoutedEventArgs e)
+    {
+        var win = new RundownWindow();
+        win.Show();
+    }
+
     private async Task RunBenchmarkAsync(bool gpu)
     {
         _info ??= await GeekbenchService.CheckAsync();

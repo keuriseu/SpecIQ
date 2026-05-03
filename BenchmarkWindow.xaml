@@ -118,7 +118,9 @@
                         <Button Content="CPU" Click="RunCpuBenchmark_Click"
                                 Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,6,0"/>
                         <Button Content="GPU" Click="RunGpuBenchmark_Click"
-                                Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                                Background="#8B5CF6" Style="{StaticResource Btn}" Margin="0,0,6,0"/>
+                        <Button Content="🔋 Rundown" Click="Rundown_Click"
+                                Background="#059669" Style="{StaticResource Btn}"/>
                     </StackPanel>
                 </StackPanel>
             </StackPanel>

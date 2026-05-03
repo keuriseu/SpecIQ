@@ -43,6 +43,10 @@ public partial class App : System.Windows.Application
         benchItem.Click += (_, _) => ShowBenchmark();
         menu.Items.Add(benchItem);
 
+        var rundownItem = new WinForms.ToolStripMenuItem("Battery Rundown…");
+        rundownItem.Click += (_, _) => ShowRundown();
+        menu.Items.Add(rundownItem);
+
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
@@ -83,6 +87,19 @@ public partial class App : System.Windows.Application
         }
         _benchmarkWindow = new BenchmarkWindow();
         _benchmarkWindow.Show();
+    }
+
+    private RundownWindow? _rundownWindow;
+
+    private void ShowRundown()
+    {
+        if (_rundownWindow is { IsLoaded: true })
+        {
+            _rundownWindow.Activate();
+            return;
+        }
+        _rundownWindow = new RundownWindow();
+        _rundownWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;

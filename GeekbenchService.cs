@@ -23,6 +23,8 @@ public record GeekbenchInfo(
 
 public record BenchmarkResult(int SingleCore, int MultiCore, string? ResultUrl, bool Gpu = false);
 
+public record RundownProgress(int Iteration, string StatusLine, RundownEntry? Completed = null);
+
 public static class GeekbenchService
 {
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = true })
@@ -150,7 +152,50 @@ public static class GeekbenchService
         CancellationToken ct = default)
     {
         await ApplyLicenseAsync(exePath, ct);
+        return await RunSingleAsync(exePath, progress, gpu, ct);
+    }
 
+    public static async Task RundownAsync(
+        string exePath,
+        bool gpu,
+        RundownResult result,
+        DateTime startTime,
+        IProgress<RundownProgress> progress,
+        CancellationToken ct)
+    {
+        await ApplyLicenseAsync(exePath, ct);
+
+        while (!ct.IsCancellationRequested)
+        {
+            var power      = System.Windows.Forms.SystemInformation.PowerStatus;
+            var batteryPct = (int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100);
+
+            // Stop at 3% — ensure results are safely written before power cuts out
+            if (batteryPct is >= 0 and <= 3) break;
+
+            var iteration = result.Entries.Count + 1;
+            progress.Report(new RundownProgress(iteration, $"Starting iteration {iteration}…"));
+
+            var lineProgress = new Progress<string>(line =>
+                progress.Report(new RundownProgress(iteration, line)));
+
+            var bench   = await RunSingleAsync(exePath, lineProgress, gpu, ct);
+            var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
+            var entry   = new RundownEntry(iteration, bench.SingleCore, batteryPct, elapsed);
+
+            result.Entries.Add(entry);
+            result.Save();
+
+            progress.Report(new RundownProgress(iteration, "", entry));
+        }
+    }
+
+    private static async Task<BenchmarkResult> RunSingleAsync(
+        string exePath,
+        IProgress<string> progress,
+        bool gpu,
+        CancellationToken ct)
+    {
         var args = gpu ? "--gpu --no-upload" : "--cpu --no-upload";
         var psi = new ProcessStartInfo(exePath, args)
         {

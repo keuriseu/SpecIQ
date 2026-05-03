@@ -1,0 +1,268 @@
+<Window x:Class="SpecIQ.RundownWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Battery Rundown"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Topmost="True"
+        ShowInTaskbar="True"
+        MouseLeftButtonDown="TitleBar_MouseDown">
+
+    <Window.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontFamily"  Value="Segoe UI"/>
+            <Setter Property="FontSize"    Value="10"/>
+            <Setter Property="Foreground"  Value="#70FFFFFF"/>
+        </Style>
+        <Style x:Key="Value" TargetType="TextBlock">
+            <Setter Property="FontFamily"  Value="Segoe UI"/>
+            <Setter Property="FontSize"    Value="13"/>
+            <Setter Property="FontWeight"  Value="SemiBold"/>
+            <Setter Property="Foreground"  Value="White"/>
+        </Style>
+        <Style x:Key="Btn" TargetType="Button">
+            <Setter Property="FontFamily"  Value="Segoe UI"/>
+            <Setter Property="FontSize"    Value="12"/>
+            <Setter Property="FontWeight"  Value="SemiBold"/>
+            <Setter Property="Foreground"  Value="White"/>
+            <Setter Property="Cursor"      Value="Hand"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"     Value="18,9"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="360">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
+        </Border.Effect>
+
+        <StackPanel>
+
+            <!-- Title bar -->
+            <Grid Margin="20,16,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="BATTERY RUNDOWN" FontFamily="Segoe UI"
+                           FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="✕" Click="Close_Click"
+                        Background="Transparent" Foreground="#60FFFFFF"
+                        FontSize="14" Padding="8,4" Cursor="Hand" BorderThickness="0">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Bg" Background="Transparent" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bg" Property="Background" Value="#20FFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+
+            <Border Height="1" Background="#15FFFFFF" Margin="0,12,0,0"/>
+
+            <!-- ── Config panel ── -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="Loops the benchmark until battery dies." Style="{StaticResource Label}"
+                           HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                <TextBlock Text="Results are saved after each iteration." Style="{StaticResource Label}"
+                           HorizontalAlignment="Center" Margin="0,0,0,16" Foreground="#40FFFFFF"/>
+
+                <!-- Previous results -->
+                <Border x:Name="PreviousResultsBorder" Visibility="Collapsed"
+                        Background="#15FFFFFF" CornerRadius="8" Padding="12,10" Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="PREVIOUS RESULTS" Style="{StaticResource Label}"
+                                       FontSize="9" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="PreviousSummaryText" Text="—" Style="{StaticResource Value}"
+                                       FontSize="11"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="View" Click="ViewPrevious_Click"
+                                Background="#30FFFFFF" Style="{StaticResource Btn}"
+                                Padding="12,6" FontSize="11" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <TextBlock Text="Choose benchmark type:" Style="{StaticResource Label}"
+                           HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="CPU" Click="StartCpu_Click"
+                            Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
+                    <Button Content="GPU" Click="StartGpu_Click"
+                            Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <!-- ── Running panel ── -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <!-- Header row: iteration + battery -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="RunIterText" Text="Iteration 1" Style="{StaticResource Value}"
+                                   FontSize="12"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="🔋 " FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="RunBatteryText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="12"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Elapsed + last score -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="ELAPSED" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunElapsedText" Text="0:00:00" FontFamily="Segoe UI"
+                                   FontSize="20" FontWeight="Bold" Foreground="White"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="LAST SCORE" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunLastScoreText" Text="—" FontFamily="Segoe UI"
+                                   FontSize="20" FontWeight="Bold" Foreground="#60A5FA"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Live chart -->
+                <Border Background="#12FFFFFF" CornerRadius="6" Margin="0,0,0,8" ClipToBounds="True">
+                    <Canvas x:Name="RunChart" Height="120" HorizontalAlignment="Stretch"
+                            Loaded="RunChart_Loaded"/>
+                </Border>
+
+                <!-- Live log -->
+                <Border Background="#0CFFFFFF" CornerRadius="6" Height="60" Margin="0,0,0,12">
+                    <ScrollViewer x:Name="RunLogScroll" VerticalScrollBarVisibility="Hidden"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <TextBlock x:Name="RunLogText" FontFamily="Consolas" FontSize="9"
+                                   Foreground="#70FFFFFF" TextWrapping="Wrap" Padding="8,6"
+                                   LineHeight="14"/>
+                    </ScrollViewer>
+                </Border>
+
+                <Button Content="Cancel" Click="Cancel_Click"
+                        Background="#30FFFFFF" Style="{StaticResource Btn}"
+                        HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ── Results panel ── -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <!-- Summary -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock x:Name="ResTypeText" Text="CPU RUNDOWN" Style="{StaticResource Label}"
+                                   FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResDurationText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="18"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                        <TextBlock Text="ITERATIONS" Style="{StaticResource Label}"
+                                   FontSize="9" Margin="0,0,0,2" HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="ResIterText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="18" HorizontalAlignment="Right"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Height="1" Background="#15FFFFFF" Margin="0,8,0,10"/>
+
+                <!-- Chart -->
+                <Border Background="#12FFFFFF" CornerRadius="6" Margin="0,0,0,10" ClipToBounds="True">
+                    <Canvas x:Name="ResChart" Height="160" HorizontalAlignment="Stretch"
+                            Loaded="ResChart_Loaded"/>
+                </Border>
+
+                <Border Height="1" Background="#15FFFFFF" Margin="0,0,0,10"/>
+
+                <!-- Score stats -->
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock Text="FIRST" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResFirstText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="12" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="LAST" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResLastText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="12" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock Text="AVG" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResAvgText" Text="—" Style="{StaticResource Value}"
+                                   FontSize="12" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                        <TextBlock Text="DROP" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResDropText" Text="—" FontFamily="Segoe UI"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#FB923C"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Button Content="Export" Click="Export_Click"
+                            Background="#30FFFFFF" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
+                    <Button Content="Close" Click="Close_Click"
+                            Background="#3B82F6" Style="{StaticResource Btn}"/>
+                </StackPanel>
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+</Window>
