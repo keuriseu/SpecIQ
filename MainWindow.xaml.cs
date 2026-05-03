@@ -3,9 +3,9 @@ using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using Windows.System.Power;
 using Color = System.Windows.Media.Color;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WinForms = System.Windows.Forms;
@@ -73,6 +73,32 @@ public partial class MainWindow : Window
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
+    // ── Energy Saver notification ─────────────────────────────────────────
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr RegisterPowerSettingNotification(
+        IntPtr hRecipient, ref Guid PowerSettingGuid, int Flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnregisterPowerSettingNotification(IntPtr handle);
+
+    // Windows delivers battery-saver/energy-saver state changes via this GUID
+    private static Guid GUID_POWER_SAVING_STATUS = new("E00958C0-C213-4ACE-AC77-FECCED2EEEA5");
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POWERBROADCAST_SETTING
+    {
+        public Guid PowerSetting;
+        public uint DataLength;
+        public uint Data;           // 0 = off, 1 = on
+    }
+
+    private const int WM_POWERBROADCAST    = 0x0218;
+    private const int PBT_POWERSETTINGCHANGE = 0x8013;
+
+    private IntPtr _powerNotifHandle;
+    private bool   _energySaverOn;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -100,18 +126,32 @@ public partial class MainWindow : Window
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         PositionTopRight();
+        _energySaverOn = EnergyHelper.IsOn(); // best-effort initial state
         UpdateAll();
         _timer.Start();
 
-        // Push-based Energy Saver updates — fires immediately when the state changes
-        PowerManager.EnergySaverStatusChanged += OnEnergySaverStatusChanged;
+        // Hook WndProc and register for WM_POWERBROADCAST / PBT_POWERSETTINGCHANGE
+        var hwnd = new WindowInteropHelper(this).Handle;
+        HwndSource.FromHwnd(hwnd).AddHook(WndProc);
+        _powerNotifHandle = RegisterPowerSettingNotification(hwnd, ref GUID_POWER_SAVING_STATUS, 0);
 #if DEBUG
         DevServer.Start(5000);
 #endif
     }
 
-    private void OnEnergySaverStatusChanged(object? sender, object e) =>
-        Dispatcher.Invoke(UpdateEnergySaver);
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_POWERBROADCAST && (int)wParam == PBT_POWERSETTINGCHANGE)
+        {
+            var s = Marshal.PtrToStructure<POWERBROADCAST_SETTING>(lParam);
+            if (s.PowerSetting == GUID_POWER_SAVING_STATUS)
+            {
+                _energySaverOn = s.Data != 0;
+                UpdateEnergySaver();
+            }
+        }
+        return IntPtr.Zero;
+    }
 
     private void PositionTopRight()
     {
@@ -604,7 +644,7 @@ public partial class MainWindow : Window
 
     private void UpdateEnergySaver()
     {
-        if (EnergyHelper.IsOn())
+        if (_energySaverOn)
         {
             EnergySaverText.Text        = "ON";
             EnergySaverText.Foreground  = BrushYellow;
@@ -668,7 +708,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
-        PowerManager.EnergySaverStatusChanged -= OnEnergySaverStatusChanged;
+        if (_powerNotifHandle != IntPtr.Zero) UnregisterPowerSettingNotification(_powerNotifHandle);
         _cpuCounter.Dispose();
         foreach (var c in _gpuCounters) c.Dispose();
 #if DEBUG
