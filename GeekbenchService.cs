@@ -240,7 +240,9 @@ public static class GeekbenchService
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
-            CreateNoWindow         = true,
+            // GPU needs a real desktop context for Vulkan to initialise;
+            // CreateNoWindow causes Vulkan to silently skip. CPU is fine headless.
+            CreateNoWindow         = !gpu,
         };
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
