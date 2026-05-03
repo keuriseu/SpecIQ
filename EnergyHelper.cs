@@ -1,24 +1,14 @@
-using System.Runtime.InteropServices;
+using Windows.System.Power;
 
 namespace SpecIQ;
 
 internal static class EnergyHelper
 {
-    // SystemStatusFlag bit 0 = Energy Saver / Battery Saver (Windows 10 1709+)
-    [StructLayout(LayoutKind.Sequential)]
-    private struct SYSTEM_POWER_STATUS
-    {
-        public byte ACLineStatus;
-        public byte BatteryFlag;
-        public byte BatteryLifePercent;
-        public byte SystemStatusFlag;
-        public uint BatteryLifeTime;
-        public uint BatteryFullLifeTime;
-    }
-
-    [DllImport("kernel32.dll")]
-    private static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS status);
-
+    /// <summary>
+    /// Returns true when Windows Energy Saver (or Battery Saver on older builds) is active.
+    /// Uses the WinRT PowerManager API, which correctly reflects the Windows 11 24H2
+    /// Energy Saver that can run while plugged in.
+    /// </summary>
     public static bool IsOn() =>
-        GetSystemPowerStatus(out var s) && (s.SystemStatusFlag & 1) != 0;
+        PowerManager.EnergySaverStatus == EnergySaverStatus.On;
 }
