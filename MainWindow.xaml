@@ -291,23 +291,23 @@
                 <TextBlock Grid.Column="0" Text="&#xE83E;" Style="{StaticResource IconStyle}"
                            FontFamily="Segoe MDL2 Assets"/>
                 <StackPanel Grid.Column="1" Margin="6,0,0,0">
-                    <TextBlock Text="POWER MODE" Style="{StaticResource LabelStyle}" FontSize="9" Margin="0,0,0,3"/>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <TextBlock Text="⚡ " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="AcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
-                                       FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal">
-                            <TextBlock Text="🔋 " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="DcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
-                                       FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
+                    <TextBlock Text="POWER MODE" Style="{StaticResource LabelStyle}" FontSize="9" Margin="0,0,0,4"/>
+                    <!-- Plugged in -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,3">
+                        <TextBlock x:Name="AcActiveIndicator" Text="● " FontSize="7"
+                                   Foreground="#3B82F6" VerticalAlignment="Center"/>
+                        <TextBlock Text="⚡ " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="AcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
+                                   FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <!-- On battery -->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="DcActiveIndicator" Text="● " FontSize="7"
+                                   Foreground="#3B82F6" VerticalAlignment="Center"/>
+                        <TextBlock Text="🔋 " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="DcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
+                                   FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
 

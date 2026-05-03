@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private static readonly SolidColorBrush BrushPurple = Freeze(Color.FromRgb(0xC0, 0x84, 0xFC));
     private static readonly SolidColorBrush BrushOrange = Freeze(Color.FromRgb(0xFB, 0x92, 0x3C));
     private static readonly SolidColorBrush BrushPink   = Freeze(Color.FromRgb(0xF4, 0x72, 0xB6));
+    private static readonly SolidColorBrush BrushDim    = Freeze(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
 
     private static SolidColorBrush Freeze(Color c)
     {
@@ -548,6 +549,14 @@ public partial class MainWindow : Window
     {
         AcModeText.Text = ReadPowerMode(ac: true);
         DcModeText.Text = ReadPowerMode(ac: false);
+
+        var pluggedIn = _lastPower?.PowerLineStatus == WinForms.PowerLineStatus.Online;
+
+        // Active row: full brightness + blue dot; inactive: dimmed + hidden dot
+        AcModeText.Foreground        = pluggedIn ? BrushWhite : BrushDim;
+        AcActiveIndicator.Visibility = pluggedIn ? Visibility.Visible : Visibility.Hidden;
+        DcModeText.Foreground        = pluggedIn ? BrushDim : BrushWhite;
+        DcActiveIndicator.Visibility = pluggedIn ? Visibility.Hidden : Visibility.Visible;
     }
 
     private static string ReadPowerMode(bool ac)
