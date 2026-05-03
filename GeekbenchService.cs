@@ -191,8 +191,10 @@ public static class GeekbenchService
                     progress.Report(new RundownProgress(iteration, line)));
                 var (cpu, gpuResult) = await RunStressSingleAsync(exePath, lineProgress, ct);
                 var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
-                // SingleScore = CPU multi-core, MultiScore = GPU OpenCL — most representative under combined load
-                entry = new RundownEntry(iteration, cpu.MultiCore, gpuResult.SingleCore, batteryPct, elapsed);
+                entry = new RundownEntry(iteration,
+                    cpu.SingleCore, cpu.MultiCore,
+                    batteryPct, elapsed,
+                    gpuResult.SingleCore, gpuResult.MultiCore);
             }
             else
             {

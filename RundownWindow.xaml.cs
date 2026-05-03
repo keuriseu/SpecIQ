@@ -120,9 +120,12 @@ public partial class RundownWindow : Window
         RunLogText.Text     = "";
         RunScoreA.Text      = "—";
         RunScoreB.Text      = "—";
+        RunScoreC.Text      = "—";
+        RunScoreD.Text      = "—";
         RunIterText.Text    = "Iteration 1";
         RunBatteryText.Text = "—";
         RunElapsedText.Text = "0:00:00";
+        StressGpuScoreRow.Visibility = stress ? Visibility.Visible : Visibility.Collapsed;
 
         _stopwatch.Restart();
         _clockTimer.Start();
@@ -173,8 +176,10 @@ public partial class RundownWindow : Window
         // Update stats + chart when an iteration completes
         if (p.Completed is { } entry)
         {
-            RunScoreA.Text = entry.SingleScore > 0 ? $"{entry.SingleScore:N0}" : "—";
-            RunScoreB.Text = entry.MultiScore  > 0 ? $"{entry.MultiScore:N0}"  : "—";
+            RunScoreA.Text = entry.SingleScore    > 0 ? $"{entry.SingleScore:N0}"    : "—";
+            RunScoreB.Text = entry.MultiScore     > 0 ? $"{entry.MultiScore:N0}"     : "—";
+            RunScoreC.Text = entry.GpuOpenClScore > 0 ? $"{entry.GpuOpenClScore:N0}" : "—";
+            RunScoreD.Text = entry.GpuVulkanScore > 0 ? $"{entry.GpuVulkanScore:N0}" : "—";
             Dispatcher.BeginInvoke(DispatcherPriority.Background,
                 () => DrawChart(RunChart, _result!));
         }
@@ -211,7 +216,16 @@ public partial class RundownWindow : Window
         ResDurationText.Text = d.TotalHours >= 1 ? $"{(int)d.TotalHours}h {d.Minutes:D2}m" : $"{d.Minutes}m {d.Seconds:D2}s";
         ResIterText.Text     = result.IterationCount.ToString();
 
-        if (result.Entries.Count > 0)
+        if (result.IsStress && result.Entries.Count > 0)
+        {
+            ResAvgCpuSingle.Text  = $"{(int)result.Entries.Average(e => e.SingleScore):N0}";
+            ResAvgCpuMulti.Text   = $"{(int)result.Entries.Average(e => e.MultiScore):N0}";
+            ResAvgGpuOpenCl.Text  = $"{(int)result.Entries.Average(e => e.GpuOpenClScore):N0}";
+            ResAvgGpuVulkan.Text  = $"{(int)result.Entries.Average(e => e.GpuVulkanScore):N0}";
+            StressStatsRow.Visibility  = Visibility.Visible;
+            RegularStatsRow.Visibility = Visibility.Collapsed;
+        }
+        else if (result.Entries.Count > 0)
         {
             var first = result.Entries[0].SingleScore;
             var last  = result.Entries[^1].SingleScore;
@@ -226,6 +240,8 @@ public partial class RundownWindow : Window
                 : drop > 10
                     ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
                     : new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
+            StressStatsRow.Visibility  = Visibility.Collapsed;
+            RegularStatsRow.Visibility = Visibility.Visible;
         }
 
         ShowPanel(ResultsPanel);
@@ -272,26 +288,22 @@ public partial class RundownWindow : Window
         var h = canvas.ActualHeight;
         if (w < 10 || h < 10) return;
 
-        // Dual Y-axis: left = single (blue), right = multi (orange)
         const double padL = 46, padR = 46, padT = 10, padB = 24;
-        var plotW = w - padL - padR;
-        var plotH = h - padT - padB;
-
-        var maxSingle  = entries.Max(e => e.SingleScore) * 1.08;
-        var maxMulti   = entries.Max(e => e.MultiScore)  * 1.08;
+        var plotW      = w - padL - padR;
+        var plotH      = h - padT - padB;
         var maxElapsed = Math.Max(entries.Max(e => e.ElapsedSeconds), 1);
 
-        // Both Y-axes start from 0
-        double Px(int sec)    => padL + sec / (double)maxElapsed * plotW;
-        double PySingle(double s) => maxSingle > 0 ? padT + (1 - s / maxSingle) * plotH : padT + plotH;
-        double PyMulti(double s)  => maxMulti  > 0 ? padT + (1 - s / maxMulti)  * plotH : padT + plotH;
+        double Px(int sec) => padL + sec / (double)maxElapsed * plotW;
 
         var blue   = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
         var orange = new SolidColorBrush(Color.FromRgb(0xFB, 0x92, 0x3C));
+        var green  = new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
+        var purple = new SolidColorBrush(Color.FromRgb(0xC0, 0x84, 0xFC));
         var dimW   = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
         var dimT   = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+        var dotStroke = new SolidColorBrush(Color.FromArgb(0x60, 0x00, 0x00, 0x00));
 
-        // Horizontal grid lines
+        // ── Grid lines ────────────────────────────────────────────────────
         for (int i = 0; i <= 4; i++)
         {
             var y = padT + plotH * i / 4.0;
@@ -303,111 +315,138 @@ public partial class RundownWindow : Window
             });
         }
 
-        // Left Y labels (single-core, blue)
-        for (int i = 0; i <= 4; i++)
-        {
-            var score = maxSingle * (4 - i) / 4.0;
-            var y     = padT + plotH * i / 4.0;
-            var label = new TextBlock
-            {
-                Text          = FormatScore(score),
-                Width         = padL - 4,
-                TextAlignment = System.Windows.TextAlignment.Right,
-                FontFamily    = new FontFamily("Segoe UI"),
-                FontSize      = 8,
-                Foreground    = new SolidColorBrush(Color.FromArgb(0x99, 0x60, 0xA5, 0xFA))
-            };
-            canvas.Children.Add(label);
-            Canvas.SetLeft(label, 0);
-            Canvas.SetTop(label, y - 7);
-        }
-
-        // Right Y labels (multi-core, orange)
-        if (maxMulti > 0)
-        {
-            for (int i = 0; i <= 4; i++)
-            {
-                var score = maxMulti * (4 - i) / 4.0;
-                var y     = padT + plotH * i / 4.0;
-                var label = new TextBlock
-                {
-                    Text       = FormatScore(score),
-                    FontFamily = new FontFamily("Segoe UI"),
-                    FontSize   = 8,
-                    Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFB, 0x92, 0x3C))
-                };
-                canvas.Children.Add(label);
-                Canvas.SetLeft(label, padL + plotW + 4);
-                Canvas.SetTop(label, y - 7);
-            }
-        }
-
-        // X-axis labels (up to 5 time markers)
+        // ── X labels ──────────────────────────────────────────────────────
         var xCount = Math.Min(entries.Count, 5);
         for (int i = 0; i < xCount; i++)
         {
             var idx   = i * (entries.Count - 1) / Math.Max(xCount - 1, 1);
             var entry = entries[Math.Min(idx, entries.Count - 1)];
             var t     = TimeSpan.FromSeconds(entry.ElapsedSeconds);
-            var text  = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:D2}h" : $"{(int)t.TotalMinutes}m";
             var label = new TextBlock
             {
-                Text = text, FontFamily = new FontFamily("Segoe UI"),
-                FontSize = 8, Foreground = dimT
+                Text = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:D2}h" : $"{(int)t.TotalMinutes}m",
+                FontFamily = new FontFamily("Segoe UI"), FontSize = 8, Foreground = dimT
             };
             canvas.Children.Add(label);
             Canvas.SetLeft(label, Px(entry.ElapsedSeconds) - 10);
             Canvas.SetTop(label, padT + plotH + 6);
         }
 
-        // Multi-core line (orange, behind single)
-        if (entries.Count > 1 && maxMulti > 0)
+        // ── Y-axis label helper ───────────────────────────────────────────
+        void AddYLabel(double score, double y, bool leftSide, SolidColorBrush color)
         {
-            var poly = new Polyline
+            var label = new TextBlock
             {
-                Stroke = orange, StrokeThickness = 1.5,
-                StrokeLineJoin = PenLineJoin.Round
+                Text      = FormatScore(score),
+                FontFamily = new FontFamily("Segoe UI"),
+                FontSize  = 8,
+                Foreground = new SolidColorBrush(Color.FromArgb(0x99, color.Color.R, color.Color.G, color.Color.B))
             };
-            foreach (var e in entries)
-                poly.Points.Add(new Point(Px(e.ElapsedSeconds), PyMulti(e.MultiScore)));
+            if (leftSide)
+            {
+                label.Width         = padL - 4;
+                label.TextAlignment = System.Windows.TextAlignment.Right;
+                Canvas.SetLeft(label, 0);
+            }
+            else
+            {
+                Canvas.SetLeft(label, padL + plotW + 4);
+            }
+            canvas.Children.Add(label);
+            Canvas.SetTop(label, y - 7);
+        }
+
+        // ── Dot helper ────────────────────────────────────────────────────
+        void AddDot(double x, double y, SolidColorBrush fill, double r = 3.5)
+        {
+            var dot = new Ellipse { Width = r * 2, Height = r * 2, Fill = fill, Stroke = dotStroke, StrokeThickness = 1 };
+            canvas.Children.Add(dot);
+            Canvas.SetLeft(dot, x - r);
+            Canvas.SetTop(dot, y - r);
+        }
+
+        // ── Polyline helper ───────────────────────────────────────────────
+        void AddLine(Func<RundownEntry, Point> pt, SolidColorBrush color)
+        {
+            if (entries.Count < 2) return;
+            var poly = new Polyline { Stroke = color, StrokeThickness = 1.5, StrokeLineJoin = PenLineJoin.Round };
+            foreach (var e in entries) poly.Points.Add(pt(e));
             canvas.Children.Add(poly);
         }
 
-        // Single-core line (blue, on top)
-        if (entries.Count > 1)
+        if (result.IsStress)
         {
-            var poly = new Polyline
-            {
-                Stroke = blue, StrokeThickness = 1.5,
-                StrokeLineJoin = PenLineJoin.Round
-            };
-            foreach (var e in entries)
-                poly.Points.Add(new Point(Px(e.ElapsedSeconds), PySingle(e.SingleScore)));
-            canvas.Children.Add(poly);
-        }
+            // ── Stress: 4 lines — left axis = CPU, right axis = GPU ───────
+            var maxCpu = Math.Max(entries.Max(e => e.SingleScore), entries.Max(e => e.MultiScore)) * 1.08;
+            var maxGpu = Math.Max(entries.Max(e => e.GpuOpenClScore), entries.Max(e => e.GpuVulkanScore)) * 1.08;
 
-        // Dots colored by battery %
-        foreach (var entry in entries)
-        {
-            var dotColor = entry.BatteryPct > 50
-                ? Color.FromRgb(0x4A, 0xDE, 0x80)
-                : entry.BatteryPct > 20
-                    ? Color.FromRgb(0xFB, 0xBF, 0x24)
-                    : Color.FromRgb(0xF8, 0x71, 0x71);
-            var fill = new SolidColorBrush(dotColor);
-            var stroke = new SolidColorBrush(Color.FromArgb(0x60, 0x00, 0x00, 0x00));
+            double PyCpu(double s) => maxCpu > 0 ? padT + (1 - s / maxCpu) * plotH : padT + plotH;
+            double PyGpu(double s) => maxGpu > 0 ? padT + (1 - s / maxGpu) * plotH : padT + plotH;
 
-            void AddDot(double x, double y)
+            // Y labels: left = blue (CPU), right = green (GPU)
+            for (int i = 0; i <= 4; i++)
             {
-                var dot = new Ellipse { Width = 7, Height = 7, Fill = fill, Stroke = stroke, StrokeThickness = 1 };
-                canvas.Children.Add(dot);
-                Canvas.SetLeft(dot, x - 3.5);
-                Canvas.SetTop(dot, y - 3.5);
+                AddYLabel(maxCpu * (4 - i) / 4.0, padT + plotH * i / 4.0, leftSide: true,  blue);
+                if (maxGpu > 0)
+                    AddYLabel(maxGpu * (4 - i) / 4.0, padT + plotH * i / 4.0, leftSide: false, green);
             }
 
-            AddDot(Px(entry.ElapsedSeconds), PySingle(entry.SingleScore));
-            if (maxMulti > 0)
-                AddDot(Px(entry.ElapsedSeconds), PyMulti(entry.MultiScore));
+            // Lines back-to-front: GPU Vulkan → GPU OpenCL → CPU Multi → CPU Single
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyGpu(e.GpuVulkanScore)), purple);
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyGpu(e.GpuOpenClScore)), green);
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyCpu(e.MultiScore)),     orange);
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyCpu(e.SingleScore)),    blue);
+
+            // Dots: battery-colored, 4 per entry
+            foreach (var entry in entries)
+            {
+                var dotColor = entry.BatteryPct > 50 ? Color.FromRgb(0x4A, 0xDE, 0x80)
+                             : entry.BatteryPct > 20 ? Color.FromRgb(0xFB, 0xBF, 0x24)
+                                                     : Color.FromRgb(0xF8, 0x71, 0x71);
+                var fill = new SolidColorBrush(dotColor);
+                var x    = Px(entry.ElapsedSeconds);
+                AddDot(x, PyCpu(entry.SingleScore),    fill, r: 3.0);
+                AddDot(x, PyCpu(entry.MultiScore),     fill, r: 3.0);
+                if (maxGpu > 0)
+                {
+                    AddDot(x, PyGpu(entry.GpuOpenClScore), fill, r: 3.0);
+                    AddDot(x, PyGpu(entry.GpuVulkanScore), fill, r: 3.0);
+                }
+            }
+        }
+        else
+        {
+            // ── CPU / GPU: 2 lines — left = A (blue), right = B (orange) ─
+            var maxA = entries.Max(e => e.SingleScore) * 1.08;
+            var maxB = entries.Max(e => e.MultiScore)  * 1.08;
+
+            double PyA(double s) => maxA > 0 ? padT + (1 - s / maxA) * plotH : padT + plotH;
+            double PyB(double s) => maxB > 0 ? padT + (1 - s / maxB) * plotH : padT + plotH;
+
+            // Y labels
+            for (int i = 0; i <= 4; i++)
+            {
+                AddYLabel(maxA * (4 - i) / 4.0, padT + plotH * i / 4.0, leftSide: true,  blue);
+                if (maxB > 0)
+                    AddYLabel(maxB * (4 - i) / 4.0, padT + plotH * i / 4.0, leftSide: false, orange);
+            }
+
+            // Lines
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyB(e.MultiScore)),  orange);
+            AddLine(e => new Point(Px(e.ElapsedSeconds), PyA(e.SingleScore)), blue);
+
+            // Dots
+            foreach (var entry in entries)
+            {
+                var dotColor = entry.BatteryPct > 50 ? Color.FromRgb(0x4A, 0xDE, 0x80)
+                             : entry.BatteryPct > 20 ? Color.FromRgb(0xFB, 0xBF, 0x24)
+                                                     : Color.FromRgb(0xF8, 0x71, 0x71);
+                var fill = new SolidColorBrush(dotColor);
+                var x    = Px(entry.ElapsedSeconds);
+                AddDot(x, PyA(entry.SingleScore), fill);
+                if (maxB > 0)
+                    AddDot(x, PyB(entry.MultiScore), fill);
+            }
         }
     }
 

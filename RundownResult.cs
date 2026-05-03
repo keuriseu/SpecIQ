@@ -9,7 +9,9 @@ public record RundownEntry(
     int SingleScore,
     int MultiScore,
     int BatteryPct,
-    int ElapsedSeconds);
+    int ElapsedSeconds,
+    int GpuOpenClScore = 0,
+    int GpuVulkanScore = 0);
 
 public class RundownResult
 {
@@ -24,8 +26,8 @@ public class RundownResult
     [JsonIgnore] public int      IterationCount => Entries.Count;
     [JsonIgnore] public bool     IsGpu          => BenchmarkType == "GPU";
     [JsonIgnore] public bool     IsStress       => BenchmarkType == "Stress";
-    [JsonIgnore] public string   LabelA         => IsGpu ? "OpenCL" : IsStress ? "CPU Multi" : "Single-Core";
-    [JsonIgnore] public string   LabelB         => IsGpu ? "Vulkan"  : IsStress ? "GPU OpenCL" : "Multi-Core";
+    [JsonIgnore] public string   LabelA         => IsGpu ? "OpenCL" : IsStress ? "CPU Single" : "Single-Core";
+    [JsonIgnore] public string   LabelB         => IsGpu ? "Vulkan"  : IsStress ? "CPU Multi"  : "Multi-Core";
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 

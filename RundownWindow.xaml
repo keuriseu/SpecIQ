@@ -174,6 +174,25 @@
                     </StackPanel>
                 </Grid>
 
+                <!-- Stress: GPU scores row (CPU+GPU mode only) -->
+                <Grid x:Name="StressGpuScoreRow" Visibility="Collapsed" Margin="0,-4,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="GPU OPENCL" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunScoreC" Text="—" FontFamily="Segoe UI"
+                                   FontSize="18" FontWeight="Bold" Foreground="#4ADE80"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="GPU VULKAN" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunScoreD" Text="—" FontFamily="Segoe UI"
+                                   FontSize="18" FontWeight="Bold" Foreground="#C084FC"/>
+                    </StackPanel>
+                </Grid>
+
                 <!-- Iteration counter -->
                 <TextBlock x:Name="RunIterText" Text="Iteration 1" Style="{StaticResource Label}"
                            FontSize="10" Margin="0,0,0,8"/>
@@ -232,8 +251,8 @@
 
                 <Border Height="1" Background="#15FFFFFF" Margin="0,0,0,10"/>
 
-                <!-- Score stats -->
-                <Grid Margin="0,0,0,14">
+                <!-- Score stats: CPU/GPU mode (FIRST / LAST / AVG / DROP) -->
+                <Grid x:Name="RegularStatsRow" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
@@ -263,6 +282,44 @@
                                    HorizontalAlignment="Center" Margin="0,0,0,2"/>
                         <TextBlock x:Name="ResDropText" Text="—" FontFamily="Segoe UI"
                                    FontSize="12" FontWeight="SemiBold" Foreground="#FB923C"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Score stats: Stress mode (4 averages) -->
+                <Grid x:Name="StressStatsRow" Visibility="Collapsed" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock Text="CPU SINGLE" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResAvgCpuSingle" Text="—" FontFamily="Segoe UI"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#60A5FA"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="CPU MULTI" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResAvgCpuMulti" Text="—" FontFamily="Segoe UI"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#FB923C"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock Text="GPU OPENCL" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResAvgGpuOpenCl" Text="—" FontFamily="Segoe UI"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#4ADE80"
+                                   HorizontalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                        <TextBlock Text="GPU VULKAN" Style="{StaticResource Label}" FontSize="9"
+                                   HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResAvgGpuVulkan" Text="—" FontFamily="Segoe UI"
+                                   FontSize="12" FontWeight="SemiBold" Foreground="#C084FC"
                                    HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
