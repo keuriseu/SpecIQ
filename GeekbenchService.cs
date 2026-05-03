@@ -230,7 +230,16 @@ public static class GeekbenchService
         proc.BeginOutputReadLine();
         proc.BeginErrorReadLine();
 
-        await proc.WaitForExitAsync(ct);
+        try
+        {
+            await proc.WaitForExitAsync(ct);
+        }
+        catch (OperationCanceledException)
+        {
+            try { proc.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
+
         return ParseResult(lines, gpu);
     }
 

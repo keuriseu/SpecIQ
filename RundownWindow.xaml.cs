@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -30,6 +31,7 @@ public partial class RundownWindow : Window
 
     private CancellationTokenSource? _cts;
     private readonly DispatcherTimer  _clockTimer;
+    private readonly Stopwatch        _stopwatch = new();
     private DateTime                  _startTime;
     private RundownResult?            _result;
     private RundownResult?            _previousResult;
@@ -110,8 +112,10 @@ public partial class RundownWindow : Window
         RunBatteryText.Text = "—";
         RunElapsedText.Text = "0:00:00";
 
+        _stopwatch.Restart();
         _clockTimer.Start();
         PreventSleep();
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
         var progress = new Progress<RundownProgress>(OnProgress);
 
@@ -126,6 +130,8 @@ public partial class RundownWindow : Window
         }
         finally
         {
+            SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            _stopwatch.Stop();
             _clockTimer.Stop();
             AllowSleep();
             _cts = null;
@@ -164,24 +170,25 @@ public partial class RundownWindow : Window
 
     private void TickClock()
     {
-        var elapsed = DateTime.Now - _startTime;
+        var elapsed = _stopwatch.Elapsed;
         RunElapsedText.Text = elapsed.ToString(@"h\:mm\:ss");
 
         var power = WinForms.SystemInformation.PowerStatus;
         RunBatteryText.Text = $"{(int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100)}%";
     }
 
-    private void Cancel_Click(object sender, RoutedEventArgs e)
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Suspend)
+            Dispatcher.BeginInvoke(StopRundown);
+    }
+
+    private void StopRundown()
     {
         _cts?.Cancel();
-        _clockTimer.Stop();
-        AllowSleep();
-
-        if (_result?.Entries.Count > 0)
-            ShowResults(_result);
-        else
-            ShowPanel(ConfigPanel);
     }
+
+    private void Stop_Click(object sender, RoutedEventArgs e) => StopRundown();
 
     // ── Results panel ─────────────────────────────────────────────────────
 

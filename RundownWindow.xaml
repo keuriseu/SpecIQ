@@ -189,7 +189,7 @@
                     </ScrollViewer>
                 </Border>
 
-                <Button Content="Cancel" Click="Cancel_Click"
+                <Button Content="Stop" Click="Stop_Click"
                         Background="#30FFFFFF" Style="{StaticResource Btn}"
                         HorizontalAlignment="Center"/>
             </StackPanel>
