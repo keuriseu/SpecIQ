@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(where dotnet:*)",
+      "Bash(dotnet --version)",
+      "Read(//c/Program Files/dotnet/**)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(winget install:*)",
+      "Bash(export PATH=\"/c/Program Files/dotnet:$PATH\")",
+      "Bash(dotnet new:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(gh auth:*)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(gh repo:*)",
+      "Bash(taskkill /IM SpecIQ.exe /F)",
+      "Bash(taskkill //IM SpecIQ.exe //F)",
+      "Bash(dotnet publish:*)",
+      "Bash(gh release create v1.0.0 'publish/win-x64/SpecIQ.exe#SpecIQ-win-x64.exe' 'publish/win-arm64/SpecIQ.exe#SpecIQ-win-arm64.exe' --title 'SpecIQ v1.0.0' --notes ':*)",
+      "Bash(gh release:*)",
+      "Bash(powershell -Command \"Get-Counter -ListSet '*npu*' | Select-Object CounterSetName; Get-Counter -ListSet '*neural*' | Select-Object CounterSetName; Get-Counter -ListSet '*hexagon*' | Select-Object CounterSetName\")",
+      "Bash(powershell -Command \"Get-Counter -ListSet '*qualcomm*','*qcom*','*snapdragon*','*adreno*' 2>&1 | Select-Object CounterSetName\")",
+      "Bash(powershell.exe -Command '[System.Diagnostics.PerformanceCounterCategory]::GetCategories\\(\\) | Where-Object { $_.CategoryName -match '\\\\''GPU|AI|NPU|ML|compute|neural|qualcomm|qcom'\\\\'' } | Select-Object -ExpandProperty CategoryName')",
+      "Bash(powershell.exe -Command 'Get-WmiObject -Namespace root/cimv2 -Class Win32_PnPEntity | Where-Object { $_.Name -match '\\\\''NPU|Neural|Hexagon|AI'\\\\'' } | Select-Object Name, DeviceID')",
+      "Bash(powershell.exe -Command \"[System.Diagnostics.PerformanceCounterCategory]::GetCategories\\(\\) | Select-Object -ExpandProperty CategoryName | Sort-Object\")",
+      "Bash(powershell.exe -Command 'Get-ChildItem '\\\\''HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Services'\\\\'' | Where-Object { $_.Name -match '\\\\''qcom|qualcomm|hexagon|npu'\\\\'' } | Select-Object Name')",
+      "Bash(powershell.exe -Command 'Get-ChildItem '\\\\''HKLM:\\\\SYSTEM\\\\CurrentControlSet\\\\Services'\\\\'' | Where-Object { $_.Name -imatch '\\\\''qcom|qualcomm|hexagon|npu|dsp|cdsp'\\\\'' } | Select-Object -ExpandProperty Name')",
+      "Bash(powershell.exe -Command \"Get-WmiObject -Namespace root -Class __NAMESPACE | Select-Object Name\")",
+      "Bash(powershell.exe -Command \"& 'C:\\\\Windows\\\\System32\\\\typeperf.exe' -qx 2>&1\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(dotnet add:*)",
+      "Bash(wait)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "WebFetch(domain:www.geekbench.com)",
+      "Bash(git commit *)",
+      "Bash(taskkill /F /IM SpecIQ.exe)",
+      "Bash(taskkill /F /IM \"SpecIQ.exe\")",
+      "PowerShell(Start-Process \"C:\\\\Users\\\\Snapdragon\\\\SpecIQ\\\\bin\\\\Debug\\\\net9.0-windows\\\\SpecIQ.exe\")"
+    ]
+  }
+}

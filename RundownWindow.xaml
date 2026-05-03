@@ -53,7 +53,7 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#EE1A1A2E" CornerRadius="14" Width="360">
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="400">
         <Border.Effect>
             <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
         </Border.Effect>
@@ -131,40 +131,47 @@
             <!-- ── Running panel ── -->
             <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
 
-                <!-- Header row: iteration + battery -->
+                <!-- Subtitle: version + type + start battery -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="RunIterText" Text="Iteration 1" Style="{StaticResource Value}"
-                                   FontSize="12"/>
-                    </StackPanel>
+                    <TextBlock x:Name="RunSubtitleText" Grid.Column="0" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <TextBlock Text="🔋 " FontSize="11" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="RunBatteryText" Text="—" Style="{StaticResource Value}"
-                                   FontSize="12"/>
+                        <TextBlock x:Name="RunBatteryText" Text="—" Style="{StaticResource Value}" FontSize="12"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- Elapsed + last score -->
+                <!-- Elapsed + single score + multi score -->
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="ELAPSED" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
                         <TextBlock x:Name="RunElapsedText" Text="0:00:00" FontFamily="Segoe UI"
-                                   FontSize="20" FontWeight="Bold" Foreground="White"/>
+                                   FontSize="18" FontWeight="Bold" Foreground="White"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1">
-                        <TextBlock Text="LAST SCORE" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
-                        <TextBlock x:Name="RunLastScoreText" Text="—" FontFamily="Segoe UI"
-                                   FontSize="20" FontWeight="Bold" Foreground="#60A5FA"/>
+                        <TextBlock x:Name="RunLabelA" Text="SINGLE" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunScoreA" Text="—" FontFamily="Segoe UI"
+                                   FontSize="18" FontWeight="Bold" Foreground="#60A5FA"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock x:Name="RunLabelB" Text="MULTI" Style="{StaticResource Label}" FontSize="9" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="RunScoreB" Text="—" FontFamily="Segoe UI"
+                                   FontSize="18" FontWeight="Bold" Foreground="#FB923C"/>
                     </StackPanel>
                 </Grid>
+
+                <!-- Iteration counter -->
+                <TextBlock x:Name="RunIterText" Text="Iteration 1" Style="{StaticResource Label}"
+                           FontSize="10" Margin="0,0,0,8"/>
 
                 <!-- Live chart -->
                 <Border Background="#12FFFFFF" CornerRadius="6" Margin="0,0,0,8" ClipToBounds="True">

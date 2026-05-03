@@ -157,12 +157,18 @@ public static class GeekbenchService
 
     public static async Task RundownAsync(
         string exePath,
+        string? geekbenchVersion,
         bool gpu,
         RundownResult result,
         DateTime startTime,
         IProgress<RundownProgress> progress,
         CancellationToken ct)
     {
+        // Snapshot conditions at start
+        var startPower = System.Windows.Forms.SystemInformation.PowerStatus;
+        result.StartBatteryPct  = (int)Math.Clamp(startPower.BatteryLifePercent * 100, 0, 100);
+        result.GeekbenchVersion = geekbenchVersion;
+
         await ApplyLicenseAsync(exePath, ct);
 
         while (!ct.IsCancellationRequested)
@@ -181,7 +187,7 @@ public static class GeekbenchService
 
             var bench   = await RunSingleAsync(exePath, lineProgress, gpu, ct);
             var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
-            var entry   = new RundownEntry(iteration, bench.SingleCore, batteryPct, elapsed);
+            var entry   = new RundownEntry(iteration, bench.SingleCore, bench.MultiCore, batteryPct, elapsed);
 
             result.Entries.Add(entry);
             result.Save();

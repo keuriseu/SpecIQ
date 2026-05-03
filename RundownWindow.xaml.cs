@@ -75,6 +75,7 @@ public partial class RundownWindow : Window
     private void StartCpu_Click(object sender, RoutedEventArgs e) => _ = StartRundownAsync(gpu: false);
     private void StartGpu_Click(object sender, RoutedEventArgs e) => _ = StartRundownAsync(gpu: true);
 
+
     private void ViewPrevious_Click(object sender, RoutedEventArgs e)
     {
         if (_previousResult != null) ShowResults(_previousResult);
@@ -95,12 +96,19 @@ public partial class RundownWindow : Window
         _startTime = DateTime.Now;
         _cts       = new CancellationTokenSource();
 
+        var typeLabel = gpu ? "GPU" : "CPU";
+        var verLabel  = info.InstalledVersion != null ? $"Geekbench {info.InstalledVersion}" : "Geekbench";
+        RunSubtitleText.Text = $"{verLabel} — {typeLabel}";
+        RunLabelA.Text       = _result.LabelA.ToUpperInvariant();
+        RunLabelB.Text       = _result.LabelB.ToUpperInvariant();
+
         ShowPanel(RunningPanel);
-        RunLogText.Text      = "";
-        RunLastScoreText.Text = "—";
-        RunIterText.Text     = "Iteration 1";
-        RunBatteryText.Text  = "—";
-        RunElapsedText.Text  = "0:00:00";
+        RunLogText.Text     = "";
+        RunScoreA.Text      = "—";
+        RunScoreB.Text      = "—";
+        RunIterText.Text    = "Iteration 1";
+        RunBatteryText.Text = "—";
+        RunElapsedText.Text = "0:00:00";
 
         _clockTimer.Start();
         PreventSleep();
@@ -109,7 +117,7 @@ public partial class RundownWindow : Window
 
         try
         {
-            await GeekbenchService.RundownAsync(exePath, gpu, _result, _startTime, progress, _cts.Token);
+            await GeekbenchService.RundownAsync(exePath, info.InstalledVersion, gpu, _result, _startTime, progress, _cts.Token);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -147,9 +155,10 @@ public partial class RundownWindow : Window
         // Update stats + chart when an iteration completes
         if (p.Completed is { } entry)
         {
-            RunLastScoreText.Text = $"{entry.Score:N0}";
+            RunScoreA.Text = entry.SingleScore > 0 ? $"{entry.SingleScore:N0}" : "—";
+            RunScoreB.Text = entry.MultiScore  > 0 ? $"{entry.MultiScore:N0}"  : "—";
             Dispatcher.BeginInvoke(DispatcherPriority.Background,
-                () => DrawChart(RunChart, _result!.Entries));
+                () => DrawChart(RunChart, _result!));
         }
     }
 
@@ -185,9 +194,9 @@ public partial class RundownWindow : Window
 
         if (result.Entries.Count > 0)
         {
-            var first = result.Entries[0].Score;
-            var last  = result.Entries[^1].Score;
-            var avg   = (int)result.Entries.Average(e => e.Score);
+            var first = result.Entries[0].SingleScore;
+            var last  = result.Entries[^1].SingleScore;
+            var avg   = (int)result.Entries.Average(e => e.SingleScore);
             var drop  = first > 0 ? (first - last) * 100.0 / first : 0;
             ResFirstText.Text = $"{first:N0}";
             ResLastText.Text  = $"{last:N0}";
@@ -204,7 +213,7 @@ public partial class RundownWindow : Window
 
         // Draw chart after layout
         Dispatcher.BeginInvoke(DispatcherPriority.Background,
-            () => DrawChart(ResChart, result.Entries));
+            () => DrawChart(ResChart, result));
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)
@@ -225,17 +234,18 @@ public partial class RundownWindow : Window
 
     private void RunChart_Loaded(object sender, RoutedEventArgs e)
     {
-        if (_result?.Entries.Count > 0) DrawChart(RunChart, _result.Entries);
+        if (_result?.Entries.Count > 0) DrawChart(RunChart, _result);
     }
 
     private void ResChart_Loaded(object sender, RoutedEventArgs e)
     {
         var result = _result ?? _previousResult;
-        if (result?.Entries.Count > 0) DrawChart(ResChart, result.Entries);
+        if (result?.Entries.Count > 0) DrawChart(ResChart, result);
     }
 
-    private static void DrawChart(Canvas canvas, List<RundownEntry> entries)
+    private static void DrawChart(Canvas canvas, RundownResult result)
     {
+        var entries = result.Entries;
         canvas.Children.Clear();
         if (entries.Count == 0) return;
 
@@ -243,100 +253,142 @@ public partial class RundownWindow : Window
         var h = canvas.ActualHeight;
         if (w < 10 || h < 10) return;
 
-        const double padL = 44, padR = 10, padT = 10, padB = 24;
+        // Dual Y-axis: left = single (blue), right = multi (orange)
+        const double padL = 46, padR = 46, padT = 10, padB = 24;
         var plotW = w - padL - padR;
         var plotH = h - padT - padB;
 
-        var scores     = entries.Select(e => (double)e.Score).ToList();
-        var minScore   = scores.Min() * 0.93;
-        var maxScore   = scores.Max() * 1.05;
+        var maxSingle  = entries.Max(e => e.SingleScore) * 1.08;
+        var maxMulti   = entries.Max(e => e.MultiScore)  * 1.08;
         var maxElapsed = Math.Max(entries.Max(e => e.ElapsedSeconds), 1);
 
+        // Both Y-axes start from 0
         double Px(int sec)    => padL + sec / (double)maxElapsed * plotW;
-        double Py(double scr) => padT + (1 - (scr - minScore) / (maxScore - minScore)) * plotH;
+        double PySingle(double s) => maxSingle > 0 ? padT + (1 - s / maxSingle) * plotH : padT + plotH;
+        double PyMulti(double s)  => maxMulti  > 0 ? padT + (1 - s / maxMulti)  * plotH : padT + plotH;
 
-        // Horizontal grid lines + Y labels
-        for (int i = 0; i <= 3; i++)
+        var blue   = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
+        var orange = new SolidColorBrush(Color.FromRgb(0xFB, 0x92, 0x3C));
+        var dimW   = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+        var dimT   = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
+
+        // Horizontal grid lines
+        for (int i = 0; i <= 4; i++)
         {
-            var score = minScore + (maxScore - minScore) * i / 3.0;
-            var y     = Py(score);
-
+            var y = padT + plotH * i / 4.0;
             canvas.Children.Add(new Line
             {
                 X1 = padL, X2 = padL + plotW, Y1 = y, Y2 = y,
-                Stroke = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF)),
-                StrokeThickness = 1,
+                Stroke = dimW, StrokeThickness = 1,
                 StrokeDashArray = new DoubleCollection { 3, 3 }
             });
+        }
 
+        // Left Y labels (single-core, blue)
+        for (int i = 0; i <= 4; i++)
+        {
+            var score = maxSingle * (4 - i) / 4.0;
+            var y     = padT + plotH * i / 4.0;
             var label = new TextBlock
             {
-                Text       = FormatScore(score),
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize   = 8,
-                Foreground = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF))
+                Text          = FormatScore(score),
+                Width         = padL - 4,
+                TextAlignment = System.Windows.TextAlignment.Right,
+                FontFamily    = new FontFamily("Segoe UI"),
+                FontSize      = 8,
+                Foreground    = new SolidColorBrush(Color.FromArgb(0x99, 0x60, 0xA5, 0xFA))
             };
             canvas.Children.Add(label);
             Canvas.SetLeft(label, 0);
             Canvas.SetTop(label, y - 7);
         }
 
-        // X-axis labels (up to 5 time markers)
-        var labelCount = Math.Min(entries.Count, 5);
-        for (int i = 0; i < labelCount; i++)
+        // Right Y labels (multi-core, orange)
+        if (maxMulti > 0)
         {
-            var idx   = i * (entries.Count - 1) / Math.Max(labelCount - 1, 1);
+            for (int i = 0; i <= 4; i++)
+            {
+                var score = maxMulti * (4 - i) / 4.0;
+                var y     = padT + plotH * i / 4.0;
+                var label = new TextBlock
+                {
+                    Text       = FormatScore(score),
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize   = 8,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFB, 0x92, 0x3C))
+                };
+                canvas.Children.Add(label);
+                Canvas.SetLeft(label, padL + plotW + 4);
+                Canvas.SetTop(label, y - 7);
+            }
+        }
+
+        // X-axis labels (up to 5 time markers)
+        var xCount = Math.Min(entries.Count, 5);
+        for (int i = 0; i < xCount; i++)
+        {
+            var idx   = i * (entries.Count - 1) / Math.Max(xCount - 1, 1);
             var entry = entries[Math.Min(idx, entries.Count - 1)];
             var t     = TimeSpan.FromSeconds(entry.ElapsedSeconds);
             var text  = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:D2}h" : $"{(int)t.TotalMinutes}m";
-            var x     = Px(entry.ElapsedSeconds);
-
             var label = new TextBlock
             {
-                Text       = text,
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize   = 8,
-                Foreground = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF))
+                Text = text, FontFamily = new FontFamily("Segoe UI"),
+                FontSize = 8, Foreground = dimT
             };
             canvas.Children.Add(label);
-            Canvas.SetLeft(label, x - 10);
+            Canvas.SetLeft(label, Px(entry.ElapsedSeconds) - 10);
             Canvas.SetTop(label, padT + plotH + 6);
         }
 
-        // Score line
+        // Multi-core line (orange, behind single)
+        if (entries.Count > 1 && maxMulti > 0)
+        {
+            var poly = new Polyline
+            {
+                Stroke = orange, StrokeThickness = 1.5,
+                StrokeLineJoin = PenLineJoin.Round
+            };
+            foreach (var e in entries)
+                poly.Points.Add(new Point(Px(e.ElapsedSeconds), PyMulti(e.MultiScore)));
+            canvas.Children.Add(poly);
+        }
+
+        // Single-core line (blue, on top)
         if (entries.Count > 1)
         {
             var poly = new Polyline
             {
-                Stroke          = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA)),
-                StrokeThickness = 1.5,
-                StrokeLineJoin  = PenLineJoin.Round
+                Stroke = blue, StrokeThickness = 1.5,
+                StrokeLineJoin = PenLineJoin.Round
             };
             foreach (var e in entries)
-                poly.Points.Add(new Point(Px(e.ElapsedSeconds), Py(e.Score)));
+                poly.Points.Add(new Point(Px(e.ElapsedSeconds), PySingle(e.SingleScore)));
             canvas.Children.Add(poly);
         }
 
         // Dots colored by battery %
         foreach (var entry in entries)
         {
-            var color = entry.BatteryPct > 50
+            var dotColor = entry.BatteryPct > 50
                 ? Color.FromRgb(0x4A, 0xDE, 0x80)
                 : entry.BatteryPct > 20
                     ? Color.FromRgb(0xFB, 0xBF, 0x24)
                     : Color.FromRgb(0xF8, 0x71, 0x71);
+            var fill = new SolidColorBrush(dotColor);
+            var stroke = new SolidColorBrush(Color.FromArgb(0x60, 0x00, 0x00, 0x00));
 
-            var dot = new Ellipse
+            void AddDot(double x, double y)
             {
-                Width           = 7,
-                Height          = 7,
-                Fill            = new SolidColorBrush(color),
-                Stroke          = new SolidColorBrush(Color.FromArgb(0x60, 0x00, 0x00, 0x00)),
-                StrokeThickness = 1
-            };
-            canvas.Children.Add(dot);
-            Canvas.SetLeft(dot, Px(entry.ElapsedSeconds) - 3.5);
-            Canvas.SetTop(dot,  Py(entry.Score)           - 3.5);
+                var dot = new Ellipse { Width = 7, Height = 7, Fill = fill, Stroke = stroke, StrokeThickness = 1 };
+                canvas.Children.Add(dot);
+                Canvas.SetLeft(dot, x - 3.5);
+                Canvas.SetTop(dot, y - 3.5);
+            }
+
+            AddDot(Px(entry.ElapsedSeconds), PySingle(entry.SingleScore));
+            if (maxMulti > 0)
+                AddDot(Px(entry.ElapsedSeconds), PyMulti(entry.MultiScore));
         }
     }
 
