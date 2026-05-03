@@ -336,6 +336,7 @@ public partial class MainWindow : Window
         UpdateRam();
         UpdateGpu();
         UpdateNpu();
+        UpdatePowerMode();
         UpdateNetwork();
 #if DEBUG
         PublishStats(_lastPower);
@@ -539,6 +540,35 @@ public partial class MainWindow : Window
         }
         catch { NpuText.Text = "N/A"; NpuBar.Width = 0; }
     }
+
+    private void UpdatePowerMode()
+    {
+        AcModeText.Text = ReadPowerMode(ac: true);
+        DcModeText.Text = ReadPowerMode(ac: false);
+    }
+
+    private static string ReadPowerMode(bool ac)
+    {
+        var valueName = ac ? "ActiveOverlayAcScheme" : "ActiveOverlayDcScheme";
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                @"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes");
+            var guid = key?.GetValue(valueName)?.ToString() ?? "";
+            return PowerModeLabel(guid);
+        }
+        catch { return "Balanced"; }
+    }
+
+    private static string PowerModeLabel(string guid) =>
+        guid.Trim('{', '}').ToLowerInvariant() switch
+        {
+            "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Performance",
+            "3af9b8d9-7c97-431d-ad78-34a8bfea439f" => "Better Performance",
+            "977e8fed-3465-40a7-95b6-9e722b55e2f9" => "Better Battery",
+            "ded574b5-45a0-4f42-8734-20b8cdf4c3c5" => "Best Efficiency",
+            _                                       => "Balanced",
+        };
 
     private void UpdateNetwork()
     {

@@ -282,6 +282,37 @@
 
             <Border Style="{StaticResource SeparatorStyle}"/>
 
+            <!-- Power Mode -->
+            <Grid Margin="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xE83E;" Style="{StaticResource IconStyle}"
+                           FontFamily="Segoe MDL2 Assets"/>
+                <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                    <TextBlock Text="POWER MODE" Style="{StaticResource LabelStyle}" FontSize="9" Margin="0,0,0,3"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal">
+                            <TextBlock Text="⚡ " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="AcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
+                                       FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <TextBlock Text="🔋 " Style="{StaticResource LabelStyle}" FontSize="9" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="DcModeText" Text="—" FontFamily="Segoe UI" FontSize="10"
+                                       FontWeight="SemiBold" Foreground="White" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Grid>
+
+            <Border Style="{StaticResource SeparatorStyle}"/>
+
             <!-- Network -->
             <Grid Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>
