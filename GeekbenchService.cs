@@ -152,7 +152,14 @@ public static class GeekbenchService
         CancellationToken ct = default)
     {
         await ApplyLicenseAsync(exePath, ct);
-        return await RunSingleAsync(exePath, progress, gpu, ct);
+        if (gpu)
+        {
+            var openCl = await RunSingleAsync(exePath, progress, gpu: true,  vulkan: false, ct);
+            var vulkan = await RunSingleAsync(exePath, progress, gpu: true,  vulkan: true,  ct);
+            return new BenchmarkResult(openCl.SingleCore, vulkan.MultiCore,
+                                       openCl.ResultUrl ?? vulkan.ResultUrl, Gpu: true);
+        }
+        return await RunSingleAsync(exePath, progress, gpu: false, vulkan: false, ct);
     }
 
     public static async Task RundownAsync(
@@ -189,18 +196,27 @@ public static class GeekbenchService
             {
                 var lineProgress = new Progress<string>(line =>
                     progress.Report(new RundownProgress(iteration, line)));
-                var (cpu, gpuResult) = await RunStressSingleAsync(exePath, lineProgress, ct);
+                var (cpu, openCl, vulkan) = await RunStressSingleAsync(exePath, lineProgress, ct);
                 var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
                 entry = new RundownEntry(iteration,
                     cpu.SingleCore, cpu.MultiCore,
                     batteryPct, elapsed,
-                    gpuResult.SingleCore, gpuResult.MultiCore);
+                    openCl.SingleCore, vulkan.MultiCore);
+            }
+            else if (gpu)
+            {
+                var lineProgress = new Progress<string>(line =>
+                    progress.Report(new RundownProgress(iteration, line)));
+                var openCl  = await RunSingleAsync(exePath, lineProgress, gpu: true, vulkan: false, ct);
+                var vulkan  = await RunSingleAsync(exePath, lineProgress, gpu: true, vulkan: true,  ct);
+                var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
+                entry = new RundownEntry(iteration, openCl.SingleCore, vulkan.MultiCore, batteryPct, elapsed);
             }
             else
             {
                 var lineProgress = new Progress<string>(line =>
                     progress.Report(new RundownProgress(iteration, line)));
-                var bench   = await RunSingleAsync(exePath, lineProgress, gpu, ct);
+                var bench   = await RunSingleAsync(exePath, lineProgress, gpu: false, vulkan: false, ct);
                 var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
                 entry = new RundownEntry(iteration, bench.SingleCore, bench.MultiCore, batteryPct, elapsed);
             }
@@ -212,37 +228,41 @@ public static class GeekbenchService
         }
     }
 
-    private static async Task<(BenchmarkResult Cpu, BenchmarkResult Gpu)> RunStressSingleAsync(
+    private static async Task<(BenchmarkResult Cpu, BenchmarkResult OpenCl, BenchmarkResult Vulkan)> RunStressSingleAsync(
         string exePath,
         IProgress<string> progress,
         CancellationToken ct)
     {
-        // Sequential, not concurrent: two simultaneous Geekbench processes compete for GPU
-        // resources and the GPU instance fails silently. Running CPU then GPU ensures both
-        // complete successfully. The stress is still continuous — no rest between iterations.
-        var cpuProgress = new Progress<string>(line => progress.Report($"[CPU] {line}"));
-        var gpuProgress = new Progress<string>(line => progress.Report($"[GPU] {line}"));
+        // Sequential: concurrent Geekbench processes compete for GPU resources and fail silently.
+        var cpuProgress    = new Progress<string>(line => progress.Report($"[CPU] {line}"));
+        var openClProgress = new Progress<string>(line => progress.Report($"[OpenCL] {line}"));
+        var vulkanProgress = new Progress<string>(line => progress.Report($"[Vulkan] {line}"));
 
-        var cpu = await RunSingleAsync(exePath, cpuProgress, gpu: false, ct);
-        var gpu = await RunSingleAsync(exePath, gpuProgress, gpu: true,  ct);
-        return (cpu, gpu);
+        var cpu    = await RunSingleAsync(exePath, cpuProgress,    gpu: false, vulkan: false, ct);
+        var openCl = await RunSingleAsync(exePath, openClProgress, gpu: true,  vulkan: false, ct);
+        var vulkan = await RunSingleAsync(exePath, vulkanProgress, gpu: true,  vulkan: true,  ct);
+        return (cpu, openCl, vulkan);
     }
 
     private static async Task<BenchmarkResult> RunSingleAsync(
         string exePath,
         IProgress<string> progress,
         bool gpu,
+        bool vulkan,
         CancellationToken ct)
     {
-        var args = gpu ? "--gpu --no-upload" : "--cpu --no-upload";
+        // --vulkan runs the Vulkan GPU workload; --gpu runs OpenCL; --cpu runs CPU.
+        // GPU processes need a real desktop window — CreateNoWindow suppresses the
+        // Vulkan context and causes it to silently skip.
+        var args = vulkan ? "--vulkan --no-upload"
+                 : gpu    ? "--gpu --no-upload"
+                          : "--cpu --no-upload";
         var psi = new ProcessStartInfo(exePath, args)
         {
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
-            // GPU needs a real desktop context for Vulkan to initialise;
-            // CreateNoWindow causes Vulkan to silently skip. CPU is fine headless.
-            CreateNoWindow         = !gpu,
+            CreateNoWindow         = !gpu && !vulkan,
         };
 
         using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
@@ -279,7 +299,7 @@ public static class GeekbenchService
         if (proc.ExitCode != 0)
             progress.Report($"[Warning: process exited with code {proc.ExitCode}]");
 
-        return ParseResult(lines, gpu);
+        return ParseResult(lines, gpu || vulkan);
     }
 
     private static BenchmarkResult ParseResult(IEnumerable<string> lines, bool gpu)
