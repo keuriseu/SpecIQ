@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using Windows.System.Power;
 using Color = System.Windows.Media.Color;
 using SolidColorBrush = System.Windows.Media.SolidColorBrush;
 using WinForms = System.Windows.Forms;
@@ -101,10 +102,16 @@ public partial class MainWindow : Window
         PositionTopRight();
         UpdateAll();
         _timer.Start();
+
+        // Push-based Energy Saver updates — fires immediately when the state changes
+        PowerManager.EnergySaverStatusChanged += OnEnergySaverStatusChanged;
 #if DEBUG
         DevServer.Start(5000);
 #endif
     }
+
+    private void OnEnergySaverStatusChanged(object? sender, object e) =>
+        Dispatcher.Invoke(UpdateEnergySaver);
 
     private void PositionTopRight()
     {
@@ -661,6 +668,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _timer.Stop();
+        PowerManager.EnergySaverStatusChanged -= OnEnergySaverStatusChanged;
         _cpuCounter.Dispose();
         foreach (var c in _gpuCounters) c.Dispose();
 #if DEBUG
