@@ -541,6 +541,9 @@ public partial class MainWindow : Window
         catch { NpuText.Text = "N/A"; NpuBar.Width = 0; }
     }
 
+    [DllImport("powrprof.dll")]
+    private static extern uint PowerGetEffectiveOverlayScheme(out Guid pEffectiveOverlayPolicyGuid);
+
     private void UpdatePowerMode()
     {
         AcModeText.Text = ReadPowerMode(ac: true);
@@ -554,20 +557,30 @@ public partial class MainWindow : Window
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
                 @"SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes");
-            var guid = key?.GetValue(valueName)?.ToString() ?? "";
+            var val = key?.GetValue(valueName);
+
+            Guid guid;
+            if (val is byte[] bytes && bytes.Length == 16)
+                guid = new Guid(bytes);
+            else if (val is string s && Guid.TryParse(s, out var parsed))
+                guid = parsed;
+            else
+                return "Balanced";
+
             return PowerModeLabel(guid);
         }
         catch { return "Balanced"; }
     }
 
-    private static string PowerModeLabel(string guid) =>
-        guid.Trim('{', '}').ToLowerInvariant() switch
+    private static string PowerModeLabel(Guid guid) =>
+        guid.ToString().ToLowerInvariant() switch
         {
             "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Performance",
             "3af9b8d9-7c97-431d-ad78-34a8bfea439f" => "Better Performance",
             "977e8fed-3465-40a7-95b6-9e722b55e2f9" => "Better Battery",
             "ded574b5-45a0-4f42-8734-20b8cdf4c3c5" => "Best Efficiency",
-            _                                       => "Balanced",
+            "00000000-0000-0000-0000-000000000000" => "Balanced",
+            _                                      => "Balanced",
         };
 
     private void UpdateNetwork()
