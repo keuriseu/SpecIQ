@@ -60,14 +60,34 @@ public class RundownResult
         sb.AppendLine($"{ver}{BenchmarkType}  ·  Started: {DateTime.Parse(StartedAt):g}  ·  Start battery: {(StartBatteryPct >= 0 ? StartBatteryPct + "%" : "?")}");
         sb.AppendLine($"Iterations: {IterationCount}  Duration: {FormatDuration(TotalDuration)}");
         sb.AppendLine();
-        sb.AppendLine($"Iter  {LabelA,-12}  {LabelB,-12}  Battery  Elapsed");
-        sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
-        foreach (var e in Entries)
-            sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+        if (IsStress)
+        {
+            sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  {"GPU Vulkan",-12}  Battery  Elapsed");
+            sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
+            foreach (var e in Entries)
+                sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.GpuVulkanScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+        }
+        else
+        {
+            sb.AppendLine($"Iter  {LabelA,-12}  {LabelB,-12}  Battery  Elapsed");
+            sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
+            foreach (var e in Entries)
+                sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+        }
         if (Entries.Count > 1)
         {
-            AppendStats(sb, LabelA, Entries.Select(e => e.SingleScore).ToList());
-            AppendStats(sb, LabelB, Entries.Select(e => e.MultiScore).ToList());
+            if (IsStress)
+            {
+                AppendStats(sb, "CPU Single",  Entries.Select(e => e.SingleScore).ToList());
+                AppendStats(sb, "CPU Multi",   Entries.Select(e => e.MultiScore).ToList());
+                AppendStats(sb, "GPU OpenCL",  Entries.Select(e => e.GpuOpenClScore).ToList());
+                AppendStats(sb, "GPU Vulkan",  Entries.Select(e => e.GpuVulkanScore).ToList());
+            }
+            else
+            {
+                AppendStats(sb, LabelA, Entries.Select(e => e.SingleScore).ToList());
+                AppendStats(sb, LabelB, Entries.Select(e => e.MultiScore).ToList());
+            }
         }
         return sb.ToString();
     }

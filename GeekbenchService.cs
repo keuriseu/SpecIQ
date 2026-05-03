@@ -255,7 +255,9 @@ public static class GeekbenchService
         };
         proc.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data?.Trim() is { Length: > 0 } line) progress.Report(line);
+            if (e.Data?.Trim() is not { Length: > 0 } line) return;
+            lines.Add(line);
+            progress.Report(line);
         };
 
         proc.Start();
