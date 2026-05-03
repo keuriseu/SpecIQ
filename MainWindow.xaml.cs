@@ -576,10 +576,10 @@ public partial class MainWindow : Window
     private static string PowerModeLabel(Guid guid) =>
         guid.ToString().ToLowerInvariant() switch
         {
-            "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Performance",
+            "ded574b5-45a0-4f42-8737-46345c09c238" => "Best Performance",
             "3af9b8d9-7c97-431d-ad78-34a8bfea439f" => "Better Performance",
             "00000000-0000-0000-0000-000000000000" => "Balanced",
-            "ded574b5-45a0-4f42-8737-46345c09c238" => "Best Efficiency",
+            "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Efficiency",
             _                                      => "Balanced",
         };
 
