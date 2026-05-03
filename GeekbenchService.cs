@@ -217,14 +217,15 @@ public static class GeekbenchService
         IProgress<string> progress,
         CancellationToken ct)
     {
+        // Sequential, not concurrent: two simultaneous Geekbench processes compete for GPU
+        // resources and the GPU instance fails silently. Running CPU then GPU ensures both
+        // complete successfully. The stress is still continuous — no rest between iterations.
         var cpuProgress = new Progress<string>(line => progress.Report($"[CPU] {line}"));
         var gpuProgress = new Progress<string>(line => progress.Report($"[GPU] {line}"));
 
-        var cpuTask = RunSingleAsync(exePath, cpuProgress, gpu: false, ct);
-        var gpuTask = RunSingleAsync(exePath, gpuProgress, gpu: true,  ct);
-
-        await Task.WhenAll(cpuTask, gpuTask);
-        return (cpuTask.Result, gpuTask.Result);
+        var cpu = await RunSingleAsync(exePath, cpuProgress, gpu: false, ct);
+        var gpu = await RunSingleAsync(exePath, gpuProgress, gpu: true,  ct);
+        return (cpu, gpu);
     }
 
     private static async Task<BenchmarkResult> RunSingleAsync(
@@ -270,6 +271,9 @@ public static class GeekbenchService
             try { proc.Kill(entireProcessTree: true); } catch { }
             throw;
         }
+
+        if (proc.ExitCode != 0)
+            progress.Report($"[Warning: process exited with code {proc.ExitCode}]");
 
         return ParseResult(lines, gpu);
     }
