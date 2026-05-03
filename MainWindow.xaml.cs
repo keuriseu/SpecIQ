@@ -552,7 +552,8 @@ public partial class MainWindow : Window
 
     private static string ReadPowerMode(bool ac)
     {
-        var valueName = ac ? "ActiveOverlayAcScheme" : "ActiveOverlayDcScheme";
+        // Correct value names confirmed from registry inspection
+        var valueName = ac ? "ActiveOverlayAcPowerScheme" : "ActiveOverlayDcPowerScheme";
         try
         {
             using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
@@ -560,10 +561,10 @@ public partial class MainWindow : Window
             var val = key?.GetValue(valueName);
 
             Guid guid;
-            if (val is byte[] bytes && bytes.Length == 16)
-                guid = new Guid(bytes);
-            else if (val is string s && Guid.TryParse(s, out var parsed))
+            if (val is string s && Guid.TryParse(s, out var parsed))
                 guid = parsed;
+            else if (val is byte[] bytes && bytes.Length == 16)
+                guid = new Guid(bytes);
             else
                 return "Balanced";
 
@@ -577,9 +578,8 @@ public partial class MainWindow : Window
         {
             "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Performance",
             "3af9b8d9-7c97-431d-ad78-34a8bfea439f" => "Better Performance",
-            "977e8fed-3465-40a7-95b6-9e722b55e2f9" => "Better Battery",
-            "ded574b5-45a0-4f42-8734-20b8cdf4c3c5" => "Best Efficiency",
             "00000000-0000-0000-0000-000000000000" => "Balanced",
+            "ded574b5-45a0-4f42-8737-46345c09c238" => "Best Efficiency",
             _                                      => "Balanced",
         };
 
