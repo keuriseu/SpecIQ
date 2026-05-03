@@ -95,6 +95,17 @@ public partial class RundownWindow : Window
             return;
         }
 
+        if (EnergyHelper.IsOn())
+        {
+            var r = MessageBox.Show(
+                "Energy Saver is active, which throttles CPU performance and will affect results.\n\n" +
+                "Disable it in Windows Settings → System → Power before running.",
+                "Energy Saver Active",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+            if (r != MessageBoxResult.OK) return;
+        }
+
         _result    = new RundownResult { BenchmarkType = stress ? "Stress" : gpu ? "GPU" : "CPU" };
         _startTime = DateTime.Now;
         _cts       = new CancellationTokenSource();

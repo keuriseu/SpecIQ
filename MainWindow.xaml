@@ -313,6 +313,27 @@
 
             <Border Style="{StaticResource SeparatorStyle}"/>
 
+            <!-- Energy Saver -->
+            <Grid Margin="0,6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="&#xE945;" Style="{StaticResource IconStyle}"
+                           FontFamily="Segoe MDL2 Assets"/>
+                <TextBlock Grid.Column="1" Text="ENERGY SAVER" Style="{StaticResource LabelStyle}"
+                           FontSize="9" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                <Border Grid.Column="2" x:Name="EnergySaverBadge"
+                        CornerRadius="4" Padding="6,2" Margin="10,0,0,0" Background="Transparent">
+                    <TextBlock x:Name="EnergySaverText" Text="OFF"
+                               FontFamily="Segoe UI" FontSize="9" FontWeight="SemiBold"
+                               Foreground="#50FFFFFF"/>
+                </Border>
+            </Grid>
+
+            <Border Style="{StaticResource SeparatorStyle}"/>
+
             <!-- Network -->
             <Grid Margin="0,6,0,0">
                 <Grid.ColumnDefinitions>

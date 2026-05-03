@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using MessageBox = System.Windows.MessageBox;
 
 namespace SpecIQ;
 
@@ -122,6 +123,17 @@ public partial class BenchmarkWindow : Window
     {
         _info ??= await GeekbenchService.CheckAsync();
         if (_info.InstalledPath is not { } exePath) return;
+
+        if (EnergyHelper.IsOn())
+        {
+            var r = MessageBox.Show(
+                "Energy Saver is active, which throttles CPU performance and will affect results.\n\n" +
+                "Disable it in Windows Settings → System → Power before running.",
+                "Energy Saver Active",
+                MessageBoxButton.OKCancel,
+                MessageBoxImage.Warning);
+            if (r != MessageBoxResult.OK) return;
+        }
 
         ShowPanel(RunningPanel);
         RunPhaseText.Text = "Activating license…";

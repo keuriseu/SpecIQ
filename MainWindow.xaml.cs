@@ -22,7 +22,9 @@ public partial class MainWindow : Window
     private static readonly SolidColorBrush BrushPurple = Freeze(Color.FromRgb(0xC0, 0x84, 0xFC));
     private static readonly SolidColorBrush BrushOrange = Freeze(Color.FromRgb(0xFB, 0x92, 0x3C));
     private static readonly SolidColorBrush BrushPink   = Freeze(Color.FromRgb(0xF4, 0x72, 0xB6));
-    private static readonly SolidColorBrush BrushDim    = Freeze(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+    private static readonly SolidColorBrush BrushDim        = Freeze(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+    private static readonly SolidColorBrush BrushYellowBg   = Freeze(Color.FromArgb(0x30, 0xFB, 0xBF, 0x24));
+    private static readonly SolidColorBrush BrushClear      = Freeze(Color.FromArgb(0x00, 0x00, 0x00, 0x00));
 
     private static SolidColorBrush Freeze(Color c)
     {
@@ -338,6 +340,7 @@ public partial class MainWindow : Window
         UpdateGpu();
         UpdateNpu();
         UpdatePowerMode();
+        UpdateEnergySaver();
         UpdateNetwork();
 #if DEBUG
         PublishStats(_lastPower);
@@ -591,6 +594,22 @@ public partial class MainWindow : Window
             "961cc777-2547-4f9d-8174-7d86181b8a7a" => "Best Efficiency",
             _                                      => "Balanced",
         };
+
+    private void UpdateEnergySaver()
+    {
+        if (EnergyHelper.IsOn())
+        {
+            EnergySaverText.Text        = "ON";
+            EnergySaverText.Foreground  = BrushYellow;
+            EnergySaverBadge.Background = BrushYellowBg;
+        }
+        else
+        {
+            EnergySaverText.Text        = "OFF";
+            EnergySaverText.Foreground  = BrushDim;
+            EnergySaverBadge.Background = BrushClear;
+        }
+    }
 
     private void UpdateNetwork()
     {
