@@ -120,11 +120,16 @@
 
                 <TextBlock Text="Choose benchmark type:" Style="{StaticResource Label}"
                            HorizontalAlignment="Center" Margin="0,0,0,10"/>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="CPU" Click="StartCpu_Click"
-                            Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
-                    <Button Content="GPU" Click="StartGpu_Click"
-                            Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                <StackPanel HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                        <Button Content="CPU" Click="StartCpu_Click"
+                                Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
+                        <Button Content="GPU" Click="StartGpu_Click"
+                                Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                    </StackPanel>
+                    <Button Content="CPU + GPU Stress" Click="StartStress_Click"
+                            Background="#DC2626" Style="{StaticResource Btn}"
+                            HorizontalAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
 

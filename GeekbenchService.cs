@@ -159,6 +159,7 @@ public static class GeekbenchService
         string exePath,
         string? geekbenchVersion,
         bool gpu,
+        bool stress,
         RundownResult result,
         DateTime startTime,
         IProgress<RundownProgress> progress,
@@ -182,18 +183,46 @@ public static class GeekbenchService
             var iteration = result.Entries.Count + 1;
             progress.Report(new RundownProgress(iteration, $"Starting iteration {iteration}…"));
 
-            var lineProgress = new Progress<string>(line =>
-                progress.Report(new RundownProgress(iteration, line)));
+            RundownEntry entry;
 
-            var bench   = await RunSingleAsync(exePath, lineProgress, gpu, ct);
-            var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
-            var entry   = new RundownEntry(iteration, bench.SingleCore, bench.MultiCore, batteryPct, elapsed);
+            if (stress)
+            {
+                var lineProgress = new Progress<string>(line =>
+                    progress.Report(new RundownProgress(iteration, line)));
+                var (cpu, gpuResult) = await RunStressSingleAsync(exePath, lineProgress, ct);
+                var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
+                // SingleScore = CPU multi-core, MultiScore = GPU OpenCL — most representative under combined load
+                entry = new RundownEntry(iteration, cpu.MultiCore, gpuResult.SingleCore, batteryPct, elapsed);
+            }
+            else
+            {
+                var lineProgress = new Progress<string>(line =>
+                    progress.Report(new RundownProgress(iteration, line)));
+                var bench   = await RunSingleAsync(exePath, lineProgress, gpu, ct);
+                var elapsed = (int)(DateTime.Now - startTime).TotalSeconds;
+                entry = new RundownEntry(iteration, bench.SingleCore, bench.MultiCore, batteryPct, elapsed);
+            }
 
             result.Entries.Add(entry);
             result.Save();
 
             progress.Report(new RundownProgress(iteration, "", entry));
         }
+    }
+
+    private static async Task<(BenchmarkResult Cpu, BenchmarkResult Gpu)> RunStressSingleAsync(
+        string exePath,
+        IProgress<string> progress,
+        CancellationToken ct)
+    {
+        var cpuProgress = new Progress<string>(line => progress.Report($"[CPU] {line}"));
+        var gpuProgress = new Progress<string>(line => progress.Report($"[GPU] {line}"));
+
+        var cpuTask = RunSingleAsync(exePath, cpuProgress, gpu: false, ct);
+        var gpuTask = RunSingleAsync(exePath, gpuProgress, gpu: true,  ct);
+
+        await Task.WhenAll(cpuTask, gpuTask);
+        return (cpuTask.Result, gpuTask.Result);
     }
 
     private static async Task<BenchmarkResult> RunSingleAsync(

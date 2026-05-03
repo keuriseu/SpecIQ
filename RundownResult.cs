@@ -23,8 +23,9 @@ public class RundownResult
     [JsonIgnore] public TimeSpan TotalDuration  => Entries.Count > 0 ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) : TimeSpan.Zero;
     [JsonIgnore] public int      IterationCount => Entries.Count;
     [JsonIgnore] public bool     IsGpu          => BenchmarkType == "GPU";
-    [JsonIgnore] public string   LabelA         => IsGpu ? "OpenCL"      : "Single-Core";
-    [JsonIgnore] public string   LabelB         => IsGpu ? "Vulkan"       : "Multi-Core";
+    [JsonIgnore] public bool     IsStress       => BenchmarkType == "Stress";
+    [JsonIgnore] public string   LabelA         => IsGpu ? "OpenCL" : IsStress ? "CPU Multi" : "Single-Core";
+    [JsonIgnore] public string   LabelB         => IsGpu ? "Vulkan"  : IsStress ? "GPU OpenCL" : "Multi-Core";
 
     private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
 

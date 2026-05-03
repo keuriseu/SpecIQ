@@ -74,8 +74,9 @@ public partial class RundownWindow : Window
 
     // ── Config panel ──────────────────────────────────────────────────────
 
-    private void StartCpu_Click(object sender, RoutedEventArgs e) => _ = StartRundownAsync(gpu: false);
-    private void StartGpu_Click(object sender, RoutedEventArgs e) => _ = StartRundownAsync(gpu: true);
+    private void StartCpu_Click(object sender, RoutedEventArgs e)    => _ = StartRundownAsync(gpu: false);
+    private void StartGpu_Click(object sender, RoutedEventArgs e)    => _ = StartRundownAsync(gpu: true);
+    private void StartStress_Click(object sender, RoutedEventArgs e) => _ = StartRundownAsync(gpu: false, stress: true);
 
 
     private void ViewPrevious_Click(object sender, RoutedEventArgs e)
@@ -85,7 +86,7 @@ public partial class RundownWindow : Window
 
     // ── Rundown logic ─────────────────────────────────────────────────────
 
-    private async Task StartRundownAsync(bool gpu)
+    private async Task StartRundownAsync(bool gpu, bool stress = false)
     {
         var info = await GeekbenchService.CheckAsync();
         if (info.InstalledPath is not { } exePath)
@@ -94,11 +95,11 @@ public partial class RundownWindow : Window
             return;
         }
 
-        _result    = new RundownResult { BenchmarkType = gpu ? "GPU" : "CPU" };
+        _result    = new RundownResult { BenchmarkType = stress ? "Stress" : gpu ? "GPU" : "CPU" };
         _startTime = DateTime.Now;
         _cts       = new CancellationTokenSource();
 
-        var typeLabel = gpu ? "GPU" : "CPU";
+        var typeLabel = stress ? "CPU + GPU Stress" : gpu ? "GPU" : "CPU";
         var verLabel  = info.InstalledVersion != null ? $"Geekbench {info.InstalledVersion}" : "Geekbench";
         RunSubtitleText.Text = $"{verLabel} — {typeLabel}";
         RunLabelA.Text       = _result.LabelA.ToUpperInvariant();
@@ -121,7 +122,7 @@ public partial class RundownWindow : Window
 
         try
         {
-            await GeekbenchService.RundownAsync(exePath, info.InstalledVersion, gpu, _result, _startTime, progress, _cts.Token);
+            await GeekbenchService.RundownAsync(exePath, info.InstalledVersion, gpu, stress, _result, _startTime, progress, _cts.Token);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
