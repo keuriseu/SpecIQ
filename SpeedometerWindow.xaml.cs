@@ -237,9 +237,11 @@ public partial class SpeedometerWindow : Window
                     tcs.TrySetResult(score);
             };
 
+            bool scriptInjected = false;
             webView.CoreWebView2.NavigationCompleted += async (_, e) =>
             {
-                if (!e.IsSuccess) return;
+                if (!e.IsSuccess || scriptInjected) return;
+                scriptInjected = true;
                 progress.Report("Page loaded. Starting benchmark…");
                 await webView.CoreWebView2.ExecuteScriptAsync(
                     SpeedometerService.BuildWebView2Script());

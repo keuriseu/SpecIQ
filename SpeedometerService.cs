@@ -16,41 +16,62 @@ public static class SpeedometerService
 
     // Injected after page load: auto-clicks Start, calls REPORT_FN(score) when done.
     // REPORT_FN is replaced at call-site with the appropriate bridge function.
+    // Selectors verified against Speedometer 3.1 DOM:
+    //   start button → .start-tests-button
+    //   score        → #result-number  (shown when data-visible-section="summary")
     private const string InjectTemplate = """
         (function() {
+            console.log('[SpecIQ] script injected, readyState=' + document.readyState);
+
             function tryStart() {
-                const btn =
-                    document.querySelector('.start-tests-button') ??
-                    document.querySelector('#run-benchmark-button') ??
-                    [...document.querySelectorAll('button')].find(
-                        b => /^(start|run)$/i.test(b.textContent.trim()) && !b.disabled);
-                if (btn) { btn.click(); return true; }
+                const btn = document.querySelector('.start-tests-button');
+                if (btn && !btn.disabled) {
+                    console.log('[SpecIQ] clicking start button');
+                    btn.click();
+                    return true;
+                }
+                console.log('[SpecIQ] start button not found yet');
                 return false;
             }
-            function watchScore(cb) {
-                const read = () => {
-                    const el =
-                        document.querySelector('.score-container .score') ??
-                        document.querySelector('#result .score')           ??
-                        document.querySelector('.result .score')           ??
-                        document.querySelector('[class="score"]');
-                    if (!el) return false;
-                    const v = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
-                    if (v > 0 && v < 100000) { cb(v); return true; }
-                    return false;
-                };
-                if (read()) return;
-                const obs = new MutationObserver(() => { if (read()) obs.disconnect(); });
-                obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+            function findScore() {
+                // Primary: #result-number appears when data-visible-section="summary"
+                const section = document.documentElement.dataset.visibleSection;
+                if (section === 'summary') {
+                    const el = document.querySelector('#result-number');
+                    if (el) {
+                        const v = parseFloat(el.textContent.replace(/[^\d.]/g, ''));
+                        if (v > 0 && v < 100000) {
+                            console.log('[SpecIQ] score ' + v + ' via #result-number');
+                            return v;
+                        }
+                    }
+                }
+                return null;
             }
+
+            function watchScore(cb) {
+                const done = (v) => { obs.disconnect(); clearInterval(poll); cb(v); };
+                const check = () => { const v = findScore(); if (v) done(v); };
+                const obs  = new MutationObserver(check);
+                obs.observe(document.documentElement, { attributes: true, subtree: true, childList: true, characterData: true });
+                const poll = setInterval(check, 3000); // poll every 3 s as fallback
+                check(); // immediate check in case score already present
+            }
+
             function init() {
                 if (!tryStart()) { setTimeout(init, 500); return; }
-                watchScore(score => REPORT_FN(score.toString()));
+                console.log('[SpecIQ] benchmark started, watching for score');
+                watchScore(score => {
+                    console.log('[SpecIQ] reporting score: ' + score);
+                    REPORT_FN(score.toString());
+                });
             }
+
             if (document.readyState === 'loading')
-                document.addEventListener('DOMContentLoaded', () => setTimeout(init, 1000));
+                document.addEventListener('DOMContentLoaded', () => setTimeout(init, 1500));
             else
-                setTimeout(init, 1000);
+                setTimeout(init, 1500);
         })();
         """;
 
