@@ -105,18 +105,24 @@ public static class SpeedometerService
     {
         const int port = 9222;
 
+        // Use a throw-away profile dir so the browser always launches as a fresh
+        // process even when Edge/Chrome is already running.  Without this, the OS
+        // hands the window to the existing process which has no CDP listener.
+        var profileDir = Path.Combine(Path.GetTempPath(), $"speciq_cdp_{Guid.NewGuid():N}");
+
         progress.Report("Launching browser…");
         var proc = Process.Start(new ProcessStartInfo(browserExe,
-            $"--remote-debugging-port={port} --new-window --no-first-run --no-default-browser-check about:blank")
-            { UseShellExecute = true })
+            $"--remote-debugging-port={port} --user-data-dir=\"{profileDir}\" " +
+            $"--no-first-run --no-default-browser-check --disable-extensions about:blank")
+            { UseShellExecute = false })
             ?? throw new InvalidOperationException("Failed to launch browser.");
 
         try
         {
-            // Wait for CDP endpoint
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+            // Wait for CDP endpoint — allow up to 20 s for slower machines
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             string? wsUrl = null;
-            for (int i = 0; i < 30 && !ct.IsCancellationRequested; i++)
+            for (int i = 0; i < 40 && !ct.IsCancellationRequested; i++)
             {
                 await Task.Delay(500, ct);
                 try
@@ -203,6 +209,7 @@ public static class SpeedometerService
         finally
         {
             try { proc.Kill(entireProcessTree: true); } catch { }
+            try { Directory.Delete(profileDir, recursive: true); } catch { }
         }
     }
 }
