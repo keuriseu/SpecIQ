@@ -1,0 +1,277 @@
+<Window x:Class="SpecIQ.SpeedometerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Speedometer 3.1"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
+        Background="#0F172A"
+        Foreground="White"
+        FontFamily="Segoe UI"
+        ResizeMode="CanMinimize"
+        MouseDown="TitleBar_MouseDown">
+
+    <Window.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#70FFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="BigVal" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="SmallVal" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="BrowserBtn" TargetType="Button">
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#CCFFFFFF"/>
+            <Setter Property="Background" Value="#1AFFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="6" Padding="8,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="StartBtn" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="8" Padding="12,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="StopBtn" TargetType="Button" BasedOn="{StaticResource StartBtn}">
+            <Setter Property="Background" Value="#DC2626"/>
+        </Style>
+        <Style x:Key="ActionBtn" TargetType="Button" BasedOn="{StaticResource StartBtn}">
+            <Setter Property="Background" Value="#1E293B"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <!-- ── Title bar ── -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#0A0F1E" Padding="16,10">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="SPEEDOMETER" FontSize="11" FontWeight="Bold"
+                               Foreground="#60A5FA"/>
+                    <TextBlock Text=" 3.1" FontSize="11" FontWeight="Bold"
+                               Foreground="#94A3B8"/>
+                </StackPanel>
+                <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Content="✕" Width="24" Height="24"
+                        FontSize="10" Foreground="#60FFFFFF"
+                        Background="Transparent" BorderThickness="0"
+                        Cursor="Hand" Click="Close_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}"
+                                    CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- ── Panels ── -->
+        <Grid Grid.Row="1">
+
+            <!-- CONFIG PANEL -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="Browser-based performance benchmark."
+                           Foreground="#70FFFFFF" FontSize="11"
+                           TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+                <!-- Browser selection -->
+                <TextBlock Text="BROWSER" Style="{StaticResource Label}" Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="BtnWebView2" Grid.Column="0" Content="WebView2"
+                            Style="{StaticResource BrowserBtn}" Click="BrowserBtn_Click"
+                            Tag="WebView2"/>
+                    <Button x:Name="BtnEdge"     Grid.Column="2" Content="Edge"
+                            Style="{StaticResource BrowserBtn}" Click="BrowserBtn_Click"
+                            Tag="Edge"/>
+                    <Button x:Name="BtnChrome"   Grid.Column="4" Content="Chrome"
+                            Style="{StaticResource BrowserBtn}" Click="BrowserBtn_Click"
+                            Tag="Chrome"/>
+                </Grid>
+
+                <!-- Start buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Single Run"
+                            Style="{StaticResource StartBtn}" Click="StartSingle_Click"/>
+                    <Button Grid.Column="2" Content="Rundown"
+                            Style="{StaticResource StartBtn}" Click="StartRundown_Click"/>
+                </Grid>
+
+                <!-- Previous result -->
+                <Border x:Name="PreviousResultsBorder" Visibility="Collapsed"
+                        Background="#0FFFFFFF" CornerRadius="6"
+                        Margin="0,12,0,0" Padding="12,10" Cursor="Hand"
+                        MouseDown="ViewPrevious_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="↩  " Foreground="#60A5FA" FontSize="11"/>
+                        <StackPanel>
+                            <TextBlock Text="PREVIOUS RESULT" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="PreviousSummaryText"
+                                       FontSize="11" Foreground="#CCFFFFFF" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- RUNNING PANEL -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="RunSubtitleText" FontSize="11" Foreground="#94A3B8"
+                           Margin="0,0,0,16"/>
+
+                <!-- Live stats row -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SCORE" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="RunScore" Text="—" Style="{StaticResource BigVal}"
+                                   Foreground="#60A5FA" FontSize="26"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="BATTERY" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="RunBattery" Text="—" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                        <TextBlock Text="ELAPSED" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="RunElapsed" Text="0:00:00" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock x:Name="RunIterText" Text="Iteration 1"
+                           FontSize="11" Foreground="#94A3B8" Margin="0,0,0,8"/>
+
+                <!-- Live mini-chart -->
+                <Canvas x:Name="RunChart" Height="80" Margin="0,0,0,8"
+                        Background="#08FFFFFF" ClipToBounds="True"/>
+
+                <!-- Log -->
+                <ScrollViewer x:Name="RunLogScroll" MaxHeight="100" Margin="0,0,0,12"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="#08FFFFFF">
+                    <TextBlock x:Name="RunLogText" FontSize="10" Foreground="#80FFFFFF"
+                               TextWrapping="Wrap" Padding="8"/>
+                </ScrollViewer>
+
+                <Button Content="Stop" Style="{StaticResource StopBtn}" Click="Stop_Click"/>
+            </StackPanel>
+
+            <!-- RESULTS PANEL -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="ResTypeText" FontSize="12" FontWeight="SemiBold"
+                           Foreground="White" Margin="0,0,0,4"/>
+
+                <!-- Duration + iterations -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="DURATION" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResDurationText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ITERATIONS" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResIterText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Chart -->
+                <Canvas x:Name="ResChart" Height="140" Margin="0,0,0,16"
+                        Background="#08FFFFFF" ClipToBounds="True"
+                        Loaded="ResChart_Loaded"/>
+
+                <!-- Stats -->
+                <Grid x:Name="StatsRow" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="FIRST"  Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResFirst" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="LAST"   Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResLast" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="AVG"    Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResAvg" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="DROP"   Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResDrop" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Action buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" x:Name="ExportBtn" Content="Export"
+                            Style="{StaticResource ActionBtn}" Click="Export_Click"/>
+                    <Button Grid.Column="2" Content="Close"
+                            Style="{StaticResource ActionBtn}" Click="Close_Click"/>
+                </Grid>
+            </StackPanel>
+
+        </Grid>
+    </Grid>
+</Window>

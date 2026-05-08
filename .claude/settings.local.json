@@ -37,7 +37,12 @@
       "Bash(git commit *)",
       "Bash(taskkill /F /IM SpecIQ.exe)",
       "Bash(taskkill /F /IM \"SpecIQ.exe\")",
-      "PowerShell(Start-Process \"C:\\\\Users\\\\Snapdragon\\\\SpecIQ\\\\bin\\\\Debug\\\\net9.0-windows\\\\SpecIQ.exe\")"
+      "PowerShell(Start-Process \"C:\\\\Users\\\\Snapdragon\\\\SpecIQ\\\\bin\\\\Debug\\\\net9.0-windows\\\\SpecIQ.exe\")",
+      "Bash(git -C C:\\\\Users\\\\Snapdragon\\\\SpecIQ add GeekbenchService.cs RundownResult.cs)",
+      "Bash(git -C C:\\\\Users\\\\Snapdragon\\\\SpecIQ diff --cached --stat)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Snapdragon\\\\SpecIQ\\\\publish\\\\\" | Select-Object Name, @{N=\"MB\";E={[math]::Round\\($_.Length/1MB,1\\)}})",
+      "Bash(dotnet csi *)",
+      "Read(//c/Users/SNAPDR~1/.nuget/packages/microsoft.web.webview2/**)"
     ]
   }
 }

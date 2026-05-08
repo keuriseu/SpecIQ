@@ -47,6 +47,10 @@ public partial class App : System.Windows.Application
         rundownItem.Click += (_, _) => ShowRundown();
         menu.Items.Add(rundownItem);
 
+        var speedometerItem = new WinForms.ToolStripMenuItem("Speedometer 3.1…");
+        speedometerItem.Click += (_, _) => ShowSpeedometer();
+        menu.Items.Add(speedometerItem);
+
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
@@ -100,6 +104,19 @@ public partial class App : System.Windows.Application
         }
         _rundownWindow = new RundownWindow();
         _rundownWindow.Show();
+    }
+
+    private SpeedometerWindow? _speedometerWindow;
+
+    private void ShowSpeedometer()
+    {
+        if (_speedometerWindow is { IsLoaded: true })
+        {
+            _speedometerWindow.Activate();
+            return;
+        }
+        _speedometerWindow = new SpeedometerWindow();
+        _speedometerWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;
