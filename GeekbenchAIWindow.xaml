@@ -115,7 +115,15 @@
 
                 <!-- Run buttons -->
                 <TextBlock Text="BACKEND" Style="{StaticResource Label}" Margin="0,0,0,8"/>
-                <Grid Margin="0,0,0,0">
+
+                <!-- QNN row — visible on Snapdragon only -->
+                <Button x:Name="RunQnnBtn" Content="QNN (Snapdragon NPU)"
+                        Background="#059669" Style="{StaticResource RunBtn}"
+                        Click="RunQnn_Click" IsEnabled="False"
+                        Visibility="Collapsed" Margin="0,0,0,6"/>
+
+                <!-- CPU + GPU row -->
+                <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
                     </Grid.ColumnDefinitions>

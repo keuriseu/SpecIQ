@@ -7,10 +7,10 @@ namespace SpecIQ;
 
 public partial class GeekbenchAIWindow : Window
 {
-    private string?               _exePath;
-    private string?               _version;
+    private string?                  _exePath;
+    private string?                  _version;
     private CancellationTokenSource? _cts;
-    private AIBenchmarkResult?    _lastResult;
+    private AIBenchmarkResult?       _lastResult;
     private readonly DispatcherTimer _dotTimer;
     private int _dotFrame;
 
@@ -61,6 +61,13 @@ public partial class GeekbenchAIWindow : Window
             StatusText.Text       = "Not installed";
             InstallBtn.Visibility = Visibility.Visible;
         }
+
+        // Show QNN button only on Snapdragon devices
+        if (GeekbenchAIService.IsSnapdragonDevice())
+        {
+            RunQnnBtn.Visibility  = Visibility.Visible;
+            RunQnnBtn.IsEnabled   = _exePath != null;
+        }
     }
 
     private void Install_Click(object sender, RoutedEventArgs e)
@@ -71,15 +78,23 @@ public partial class GeekbenchAIWindow : Window
 
     // ── Run ───────────────────────────────────────────────────────────────
 
-    private void RunCpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(gpu: false);
-    private void RunGpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(gpu: true);
+    private void RunCpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Cpu);
+    private void RunGpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Gpu);
+    private void RunQnn_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Qnn);
 
-    private async Task RunAsync(bool gpu)
+    private async Task RunAsync(AIBackend backend)
     {
         if (_exePath == null) return;
 
         _cts = new CancellationTokenSource();
-        var backendLabel = gpu ? "GPU — OpenCL" : "CPU";
+
+        var backendLabel = backend switch
+        {
+            AIBackend.Gpu => "GPU — OpenCL",
+            AIBackend.Qnn => "QNN — Snapdragon NPU",
+            _             => "CPU",
+        };
+
         RunSubtitleText.Text = $"{backendLabel}  ·  {Environment.MachineName}";
         RunPhaseText.Text    = "Running…";
         LogText.Text         = "";
@@ -93,7 +108,6 @@ public partial class GeekbenchAIWindow : Window
                 LogText.Text += line + "\n";
                 LogScroll.ScrollToBottom();
 
-                // Update phase text based on keywords in output
                 var t = line.Trim();
                 if (t.Contains("Single", StringComparison.OrdinalIgnoreCase) &&
                     t.Contains("Precision", StringComparison.OrdinalIgnoreCase))
@@ -104,7 +118,7 @@ public partial class GeekbenchAIWindow : Window
                     RunPhaseText.Text = "Quantized";
             });
 
-            _lastResult = await GeekbenchAIService.RunAsync(_exePath, progress, gpu, _cts.Token);
+            _lastResult = await GeekbenchAIService.RunAsync(_exePath, progress, backend, _cts.Token);
             ShowResults(_lastResult, backendLabel);
         }
         catch (OperationCanceledException)
@@ -138,9 +152,9 @@ public partial class GeekbenchAIWindow : Window
         ResBackendText.Text = $"{verStr}  ·  {backendLabel}";
         ResMachineText.Text = Environment.MachineName;
 
-        ResFP32.Text  = result.FullPrecision  > 0 ? $"{result.FullPrecision:N0}"  : "—";
-        ResFP16.Text  = result.HalfPrecision  > 0 ? $"{result.HalfPrecision:N0}"  : "—";
-        ResQuant.Text = result.Quantized      > 0 ? $"{result.Quantized:N0}"      : "—";
+        ResFP32.Text  = result.FullPrecision > 0 ? $"{result.FullPrecision:N0}" : "—";
+        ResFP16.Text  = result.HalfPrecision > 0 ? $"{result.HalfPrecision:N0}" : "—";
+        ResQuant.Text = result.Quantized     > 0 ? $"{result.Quantized:N0}"     : "—";
 
         ShowPanel(ResultsPanel);
     }
@@ -151,14 +165,21 @@ public partial class GeekbenchAIWindow : Window
     {
         if (_lastResult == null) return;
 
+        var backendLabel = _lastResult.Backend switch
+        {
+            AIBackend.Gpu => "GPU (OpenCL)",
+            AIBackend.Qnn => "QNN (Snapdragon NPU)",
+            _             => "CPU",
+        };
+
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Geekbench AI — {Environment.MachineName}");
         if (_version != null) sb.AppendLine($"Version: {_version}");
-        sb.AppendLine($"Backend: {(_lastResult.Gpu ? "GPU (OpenCL)" : "CPU")}");
+        sb.AppendLine($"Backend: {backendLabel}");
         sb.AppendLine();
         sb.AppendLine($"Single Precision:  {(_lastResult.FullPrecision > 0 ? _lastResult.FullPrecision.ToString("N0") : "—")}");
-        sb.AppendLine($"Half Precision:    {(_lastResult.HalfPrecision > 0  ? _lastResult.HalfPrecision.ToString("N0")  : "—")}");
-        sb.AppendLine($"Quantized:         {(_lastResult.Quantized > 0      ? _lastResult.Quantized.ToString("N0")      : "—")}");
+        sb.AppendLine($"Half Precision:    {(_lastResult.HalfPrecision  > 0 ? _lastResult.HalfPrecision.ToString("N0")  : "—")}");
+        sb.AppendLine($"Quantized:         {(_lastResult.Quantized      > 0 ? _lastResult.Quantized.ToString("N0")      : "—")}");
 
         Clipboard.SetText(sb.ToString());
 

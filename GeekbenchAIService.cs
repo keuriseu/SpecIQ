@@ -1,11 +1,15 @@
 using System.Diagnostics;
 using System.IO;
+using System.Management;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 namespace SpecIQ;
 
-public record AIBenchmarkResult(int FullPrecision, int HalfPrecision, int Quantized, bool Gpu = false);
+public enum AIBackend { Cpu, Gpu, Qnn }
+
+public record AIBenchmarkResult(int FullPrecision, int HalfPrecision, int Quantized, AIBackend Backend);
 
 public static class GeekbenchAIService
 {
@@ -62,20 +66,53 @@ public static class GeekbenchAIService
         catch { return null; }
     }
 
+    /// <summary>
+    /// Returns true when running on a Qualcomm Snapdragon ARM64 device.
+    /// Checks both the CPU architecture and the processor name so x86 machines
+    /// with "Snapdragon" in an unrelated string don't get flagged.
+    /// </summary>
+    public static bool IsSnapdragonDevice()
+    {
+        if (RuntimeInformation.OSArchitecture != Architecture.Arm64) return false;
+
+        try
+        {
+            using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
+            foreach (var obj in searcher.Get())
+            {
+                var name = obj["Name"]?.ToString() ?? "";
+                if (name.Contains("Snapdragon", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Qualcomm",   StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+        }
+        catch { }
+
+        // On ARM64 Windows, assume Snapdragon if WMI fails
+        return true;
+    }
+
     public static async Task<AIBenchmarkResult> RunAsync(
         string exePath,
         IProgress<string> progress,
-        bool gpu = false,
+        AIBackend backend,
         CancellationToken ct = default)
     {
-        var args = gpu ? "--gpu OpenCL --no-upload" : "--no-upload";
+        // Flag pattern mirrors Geekbench 6: --gpu OpenCL / --gpu Vulkan
+        // QNN uses --npu QNN per the same convention for NPU backends
+        var args = backend switch
+        {
+            AIBackend.Gpu => "--gpu OpenCL --no-upload",
+            AIBackend.Qnn => "--npu QNN --no-upload",
+            _             => "--no-upload",             // CPU
+        };
 
         var psi = new ProcessStartInfo(exePath, args)
         {
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
-            CreateNoWindow         = !gpu,
+            CreateNoWindow         = backend == AIBackend.Cpu,
         };
 
         using var proc = new Process { StartInfo = psi };
@@ -105,10 +142,10 @@ public static class GeekbenchAIService
             throw;
         }
 
-        return ParseResult(lines, gpu);
+        return ParseResult(lines, backend);
     }
 
-    private static AIBenchmarkResult ParseResult(IEnumerable<string> lines, bool gpu)
+    private static AIBenchmarkResult ParseResult(IEnumerable<string> lines, AIBackend backend)
     {
         int fp32 = 0, fp16 = 0, quant = 0;
 
@@ -126,6 +163,6 @@ public static class GeekbenchAIService
             if (m.Success) { quant = int.Parse(m.Groups[1].Value); continue; }
         }
 
-        return new AIBenchmarkResult(fp32, fp16, quant, Gpu: gpu);
+        return new AIBenchmarkResult(fp32, fp16, quant, backend);
     }
 }
