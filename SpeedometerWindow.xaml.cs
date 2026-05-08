@@ -278,7 +278,7 @@ public partial class SpeedometerWindow : Window
 
     private void ShowResults(SpeedometerResult result)
     {
-        ResTypeText.Text     = $"SPEEDOMETER 3.1  ·  {result.MachineName}";
+        ResTypeText.Text     = $"SPEEDOMETER 3.1  ·  {result.Browser}  ·  {result.MachineName}";
         ResDurationText.Text = result.TotalDuration.TotalHours >= 1
             ? $"{(int)result.TotalDuration.TotalHours}h {result.TotalDuration.Minutes:D2}m"
             : $"{result.TotalDuration.Minutes}m {result.TotalDuration.Seconds:D2}s";
