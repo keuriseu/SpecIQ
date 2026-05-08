@@ -347,20 +347,18 @@ public partial class SpeedometerWindow : Window
         if (w < 10 || h < 10) return;
 
         const double padL = 46, padR = 12, padT = 10, padB = 24;
-        var plotW      = w - padL - padR;
-        var plotH      = h - padT - padB;
-        var maxElapsed = Math.Max(entries.Max(e => e.ElapsedSeconds), 1);
-        var maxScore   = entries.Max(e => e.Score) * 1.08;
+        var plotW    = w - padL - padR;
+        var plotH    = h - padT - padB;
+        var n        = entries.Count;
+        var maxScore = entries.Max(e => e.Score) * 1.08;
 
-        double Px(int sec)    => padL + sec / (double)maxElapsed * plotW;
         double Py(double val) => maxScore > 0 ? padT + (1 - val / maxScore) * plotH : padT + plotH;
 
-        var blue      = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
-        var dimW      = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
-        var dimT      = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
-        var dotStroke = new SolidColorBrush(Color.FromArgb(0x60, 0x00, 0x00, 0x00));
+        var blue = new SolidColorBrush(Color.FromRgb(0x60, 0xA5, 0xFA));
+        var dimW = new SolidColorBrush(Color.FromArgb(0x18, 0xFF, 0xFF, 0xFF));
+        var dimT = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF));
 
-        // Grid lines
+        // Grid lines + Y labels
         for (int i = 0; i <= 4; i++)
         {
             var y = padT + plotH * i / 4.0;
@@ -370,20 +368,14 @@ public partial class SpeedometerWindow : Window
                 Stroke = dimW, StrokeThickness = 1,
                 StrokeDashArray = new DoubleCollection { 3, 3 }
             });
-        }
 
-        // Y labels
-        for (int i = 0; i <= 4; i++)
-        {
             var val   = maxScore * (4 - i) / 4.0;
-            var y     = padT + plotH * i / 4.0;
             var label = new TextBlock
             {
-                Text       = val >= 1000 ? $"{val / 1000:F1}k" : $"{val:F0}",
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize   = 8,
-                Foreground = new SolidColorBrush(Color.FromArgb(0x99,
-                    blue.Color.R, blue.Color.G, blue.Color.B)),
+                Text          = val >= 1000 ? $"{val / 1000:F1}k" : $"{val:F0}",
+                FontFamily    = new FontFamily("Segoe UI"),
+                FontSize      = 8,
+                Foreground    = new SolidColorBrush(Color.FromArgb(0x99, blue.Color.R, blue.Color.G, blue.Color.B)),
                 Width         = padL - 4,
                 TextAlignment = System.Windows.TextAlignment.Right,
             };
@@ -392,53 +384,62 @@ public partial class SpeedometerWindow : Window
             Canvas.SetTop(label, y - 7);
         }
 
-        // X labels
-        var xCount = Math.Min(entries.Count, 5);
-        for (int i = 0; i < xCount; i++)
+        // Bars
+        const double gap = 4;
+        var slotW  = plotW / n;
+        var barW   = Math.Max(slotW - gap, 2);
+
+        for (int i = 0; i < n; i++)
         {
-            var idx   = i * (entries.Count - 1) / Math.Max(xCount - 1, 1);
-            var entry = entries[Math.Min(idx, entries.Count - 1)];
-            var t     = TimeSpan.FromSeconds(entry.ElapsedSeconds);
-            var label = new TextBlock
+            var entry   = entries[i];
+            var barTop  = Py(entry.Score);
+            var barH    = plotH + padT - barTop;
+            var barX    = padL + i * slotW + (slotW - barW) / 2.0;
+
+            var barColor = entry.BatteryPct > 50 ? Color.FromArgb(0xCC, 0x4A, 0xDE, 0x80)
+                         : entry.BatteryPct > 20 ? Color.FromArgb(0xCC, 0xFB, 0xBF, 0x24)
+                                                 : Color.FromArgb(0xCC, 0xF8, 0x71, 0x71);
+
+            // Bar body
+            var rect = new System.Windows.Shapes.Rectangle
             {
-                Text       = t.TotalHours >= 1 ? $"{(int)t.TotalHours}:{t.Minutes:D2}h" : $"{(int)t.TotalMinutes}m",
+                Width           = barW,
+                Height          = Math.Max(barH, 1),
+                Fill            = new SolidColorBrush(barColor),
+                RadiusX         = 3,
+                RadiusY         = 3,
+            };
+            canvas.Children.Add(rect);
+            Canvas.SetLeft(rect, barX);
+            Canvas.SetTop(rect, barTop);
+
+            // Score label above bar
+            var scoreLabel = new TextBlock
+            {
+                Text       = $"{entry.Score:F1}",
                 FontFamily = new FontFamily("Segoe UI"),
-                FontSize   = 8,
-                Foreground = dimT,
+                FontSize   = 7.5,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                Width      = barW + 6,
+                TextAlignment = System.Windows.TextAlignment.Center,
             };
-            canvas.Children.Add(label);
-            Canvas.SetLeft(label, Px(entry.ElapsedSeconds) - 10);
-            Canvas.SetTop(label, padT + plotH + 6);
-        }
+            canvas.Children.Add(scoreLabel);
+            Canvas.SetLeft(scoreLabel, barX - 3);
+            Canvas.SetTop(scoreLabel, barTop - 12);
 
-        // Score line
-        if (entries.Count >= 2)
-        {
-            var poly = new Polyline
+            // X label (iteration number)
+            var xLabel = new TextBlock
             {
-                Stroke          = blue,
-                StrokeThickness = 1.5,
-                StrokeLineJoin  = PenLineJoin.Round,
+                Text          = $"#{entry.Iteration}",
+                FontFamily    = new FontFamily("Segoe UI"),
+                FontSize      = 8,
+                Foreground    = dimT,
+                Width         = slotW,
+                TextAlignment = System.Windows.TextAlignment.Center,
             };
-            foreach (var e in entries) poly.Points.Add(new Point(Px(e.ElapsedSeconds), Py(e.Score)));
-            canvas.Children.Add(poly);
-        }
-
-        // Dots
-        foreach (var entry in entries)
-        {
-            var dotColor = entry.BatteryPct > 50 ? Color.FromRgb(0x4A, 0xDE, 0x80)
-                         : entry.BatteryPct > 20 ? Color.FromRgb(0xFB, 0xBF, 0x24)
-                                                  : Color.FromRgb(0xF8, 0x71, 0x71);
-            var dot = new Ellipse
-            {
-                Width  = 7, Height = 7,
-                Fill   = new SolidColorBrush(dotColor),
-                Stroke = dotStroke, StrokeThickness = 1,
-            };
-            canvas.Children.Add(dot);
-            Canvas.SetLeft(dot, Px(entry.ElapsedSeconds) - 3.5);
-            Canvas.SetTop(dot,  Py(entry.Score)          - 3.5);
+            canvas.Children.Add(xLabel);
+            Canvas.SetLeft(xLabel, padL + i * slotW);
+            Canvas.SetTop(xLabel, padT + plotH + 6);
         }
     }
 
