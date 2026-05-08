@@ -143,11 +143,15 @@
                 <!-- Start buttons -->
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" Content="Single Run"
                             Style="{StaticResource StartBtn}" Click="StartSingle_Click"/>
-                    <Button Grid.Column="2" Content="Rundown"
+                    <Button Grid.Column="2" Content="3 Trials"
+                            Style="{StaticResource StartBtn}" Click="StartTrials_Click"/>
+                    <Button Grid.Column="4" Content="Rundown"
                             Style="{StaticResource StartBtn}" Click="StartRundown_Click"/>
                 </Grid>
 
@@ -237,7 +241,36 @@
                         Background="#08FFFFFF" ClipToBounds="True"
                         Loaded="ResChart_Loaded"/>
 
-                <!-- Stats -->
+                <!-- Trials: individual scores + average -->
+                <StackPanel x:Name="TrialsRow" Visibility="Collapsed" Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="TRIAL 1" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="ResTrial1" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="TRIAL 2" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="ResTrial2" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                            <TextBlock Text="TRIAL 3" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="ResTrial3" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Background="#0A60A5FA" CornerRadius="8" Padding="12,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="AVERAGE" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResTrialsAvg" FontSize="36" FontWeight="Light"
+                                       Foreground="#60A5FA" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Stats (single / rundown) -->
                 <Grid x:Name="StatsRow" Margin="0,0,0,16">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>

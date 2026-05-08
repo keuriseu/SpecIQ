@@ -26,6 +26,7 @@ public partial class SpeedometerWindow : Window
     private SpeedometerResult?        _result;
     private SpeedometerResult?        _previousResult;
     private bool                      _rundown;
+    private int                       _maxIterations; // 0 = unlimited
 
     public SpeedometerWindow()
     {
@@ -97,21 +98,28 @@ public partial class SpeedometerWindow : Window
 
     // ── Start ─────────────────────────────────────────────────────────────
 
-    private void StartSingle_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false);
-    private void StartRundown_Click(object sender, RoutedEventArgs e) => _ = StartAsync(rundown: true);
+    private void StartSingle_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false, maxIterations: 1);
+    private void StartTrials_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false, maxIterations: 3);
+    private void StartRundown_Click(object sender, RoutedEventArgs e) => _ = StartAsync(rundown: true,  maxIterations: 0);
     private void ViewPrevious_Click(object sender, MouseButtonEventArgs e)
     {
-        if (_previousResult != null) ShowResults(_previousResult);
+        if (_previousResult == null) return;
+        // Restore trials mode flag from saved result count so the display is correct
+        _maxIterations = _previousResult.Entries.Count == 3 ? 3 : 0;
+        ShowResults(_previousResult);
     }
 
-    private async Task StartAsync(bool rundown)
+    private async Task StartAsync(bool rundown, int maxIterations)
     {
-        _rundown = rundown;
-        _result  = new SpeedometerResult { Browser = _browser.ToString() };
-        _cts     = new CancellationTokenSource();
+        _rundown       = rundown;
+        _maxIterations = maxIterations;
+        _result        = new SpeedometerResult { Browser = _browser.ToString() };
+        _cts           = new CancellationTokenSource();
 
         var browserLabel = _browser.ToString();
-        RunSubtitleText.Text = rundown ? $"{browserLabel}  ·  Battery Rundown" : $"{browserLabel}  ·  Single Run";
+        RunSubtitleText.Text = maxIterations == 3 ? $"{browserLabel}  ·  3 Trials"
+                             : rundown            ? $"{browserLabel}  ·  Battery Rundown"
+                                                  : $"{browserLabel}  ·  Single Run";
         RunScore.Text   = "—";
         RunBattery.Text = "—";
         RunElapsed.Text = "0:00:00";
@@ -166,7 +174,8 @@ public partial class SpeedometerWindow : Window
                 _ = Dispatcher.BeginInvoke(DispatcherPriority.Background,
                     () => DrawChart(RunChart, _result));
 
-            } while (rundown && !_cts.Token.IsCancellationRequested);
+            } while (!_cts.Token.IsCancellationRequested &&
+                     (rundown || (_maxIterations > 0 && _result.Entries.Count < _maxIterations)));
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -273,7 +282,17 @@ public partial class SpeedometerWindow : Window
             : $"{result.TotalDuration.Minutes}m {result.TotalDuration.Seconds:D2}s";
         ResIterText.Text = result.IterationCount.ToString();
 
-        if (result.Entries.Count > 0)
+        var isTrials = _maxIterations == 3 && result.Entries.Count == 3;
+
+        if (isTrials)
+        {
+            var avg = result.Entries.Average(e => e.Score);
+            ResTrial1.Text    = $"{result.Entries[0].Score:F1}";
+            ResTrial2.Text    = result.Entries.Count > 1 ? $"{result.Entries[1].Score:F1}" : "—";
+            ResTrial3.Text    = result.Entries.Count > 2 ? $"{result.Entries[2].Score:F1}" : "—";
+            ResTrialsAvg.Text = $"{avg:F1}";
+        }
+        else if (result.Entries.Count > 0)
         {
             var first = result.Entries[0].Score;
             var last  = result.Entries[^1].Score;
@@ -290,7 +309,8 @@ public partial class SpeedometerWindow : Window
                     : new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
         }
 
-        StatsRow.Visibility = result.Entries.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        TrialsRow.Visibility = isTrials ? Visibility.Visible : Visibility.Collapsed;
+        StatsRow.Visibility  = !isTrials && result.Entries.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         ShowPanel(ResultsPanel);
         Dispatcher.BeginInvoke(DispatcherPriority.Background, () => DrawChart(ResChart, result));
     }
