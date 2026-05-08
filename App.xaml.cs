@@ -51,6 +51,10 @@ public partial class App : System.Windows.Application
         speedometerItem.Click += (_, _) => ShowSpeedometer();
         menu.Items.Add(speedometerItem);
 
+        var geekbenchAiItem = new WinForms.ToolStripMenuItem("Geekbench AI…");
+        geekbenchAiItem.Click += (_, _) => ShowGeekbenchAI();
+        menu.Items.Add(geekbenchAiItem);
+
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
@@ -117,6 +121,19 @@ public partial class App : System.Windows.Application
         }
         _speedometerWindow = new SpeedometerWindow();
         _speedometerWindow.Show();
+    }
+
+    private GeekbenchAIWindow? _geekbenchAIWindow;
+
+    private void ShowGeekbenchAI()
+    {
+        if (_geekbenchAIWindow is { IsLoaded: true })
+        {
+            _geekbenchAIWindow.Activate();
+            return;
+        }
+        _geekbenchAIWindow = new GeekbenchAIWindow();
+        _geekbenchAIWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;

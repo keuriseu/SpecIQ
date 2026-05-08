@@ -1,0 +1,233 @@
+<Window x:Class="SpecIQ.GeekbenchAIWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Geekbench AI"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ShowInTaskbar="True"
+        Background="#0F172A"
+        Foreground="White"
+        FontFamily="Segoe UI"
+        ResizeMode="CanMinimize"
+        MouseDown="TitleBar_MouseDown">
+
+    <Window.Resources>
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#70FFFFFF"/>
+        </Style>
+        <Style x:Key="BigVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="28"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="SmallVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="RunBtn" TargetType="Button">
+            <Setter Property="Height"          Value="36"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="12,0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Border Grid.Row="0" Background="#0A0F1E" Padding="16,10">
+            <Grid>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="GEEKBENCH" FontSize="11" FontWeight="Bold" Foreground="#A78BFA"/>
+                    <TextBlock Text=" AI" FontSize="11" FontWeight="Bold" Foreground="#94A3B8"/>
+                </StackPanel>
+                <Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                        Content="✕" Width="24" Height="24"
+                        FontSize="10" Foreground="#60FFFFFF"
+                        Background="Transparent" BorderThickness="0"
+                        Cursor="Hand" Click="Close_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#1AFFFFFF"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1">
+
+            <!-- CONFIG PANEL -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="On-device AI performance benchmark."
+                           Foreground="#70FFFFFF" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,6"/>
+
+                <!-- Install status -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="GEEKBENCH AI" Style="{StaticResource Label}" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="StatusText" Text="Checking…"
+                                       FontSize="11" Foreground="#CCFFFFFF"/>
+                        </StackPanel>
+                        <Button x:Name="InstallBtn" Grid.Column="1"
+                                Content="Download" Visibility="Collapsed"
+                                Background="#7C3AED" Style="{StaticResource RunBtn}"
+                                Height="28" FontSize="11" Click="Install_Click"
+                                VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- Run buttons -->
+                <TextBlock Text="BACKEND" Style="{StaticResource Label}" Margin="0,0,0,8"/>
+                <Grid Margin="0,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="RunCpuBtn" Grid.Column="0" Content="CPU"
+                            Background="#7C3AED" Style="{StaticResource RunBtn}"
+                            Click="RunCpu_Click" IsEnabled="False"/>
+                    <Button x:Name="RunGpuBtn" Grid.Column="2" Content="GPU (OpenCL)"
+                            Background="#6D28D9" Style="{StaticResource RunBtn}"
+                            Click="RunGpu_Click" IsEnabled="False"/>
+                </Grid>
+
+            </StackPanel>
+
+            <!-- RUNNING PANEL -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="RunSubtitleText" FontSize="11" Foreground="#94A3B8"
+                           Margin="0,0,0,12"/>
+
+                <!-- Animated phase -->
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock x:Name="RunPhaseText" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#A78BFA"/>
+                    <TextBlock x:Name="Dot1" Text=" ●" FontSize="8" Foreground="#A78BFA"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                    <TextBlock x:Name="Dot2" Text="●" FontSize="8" Foreground="#A78BFA"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2" Opacity="0.5"/>
+                    <TextBlock x:Name="Dot3" Text="●" FontSize="8" Foreground="#A78BFA"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2" Opacity="0.25"/>
+                </StackPanel>
+
+                <!-- Log -->
+                <ScrollViewer x:Name="LogScroll" MaxHeight="140" Margin="0,8,0,12"
+                              VerticalScrollBarVisibility="Auto"
+                              Background="#08FFFFFF">
+                    <TextBlock x:Name="LogText" FontSize="9" Foreground="#70FFFFFF"
+                               FontFamily="Consolas" TextWrapping="Wrap" Padding="8"/>
+                </ScrollViewer>
+
+                <Button Content="Cancel" Background="#DC2626" Style="{StaticResource RunBtn}"
+                        Click="Cancel_Click"/>
+            </StackPanel>
+
+            <!-- RESULTS PANEL -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="ResBackendText" FontSize="12" FontWeight="SemiBold"
+                           Foreground="White" Margin="0,0,0,4"/>
+                <TextBlock x:Name="ResMachineText" FontSize="10" Foreground="#60FFFFFF"
+                           Margin="0,0,0,16"/>
+
+                <!-- Three score cards -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Full Precision -->
+                    <Border Grid.Column="0" Background="#140F172A" CornerRadius="8"
+                            BorderBrush="#20A78BFA" BorderThickness="1" Padding="10,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="FULL" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <TextBlock Text="PRECISION" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="ResFP32" Text="—" Style="{StaticResource BigVal}"
+                                       Foreground="#A78BFA" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Half Precision -->
+                    <Border Grid.Column="2" Background="#140F172A" CornerRadius="8"
+                            BorderBrush="#20818CF8" BorderThickness="1" Padding="10,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="HALF" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <TextBlock Text="PRECISION" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="ResFP16" Text="—" Style="{StaticResource BigVal}"
+                                       Foreground="#818CF8" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Quantized -->
+                    <Border Grid.Column="4" Background="#140F172A" CornerRadius="8"
+                            BorderBrush="#2034D399" BorderThickness="1" Padding="10,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="QUAN-" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,1"/>
+                            <TextBlock Text="TIZED" Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                            <TextBlock x:Name="ResQuant" Text="—" Style="{StaticResource BigVal}"
+                                       Foreground="#34D399" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Action buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" x:Name="ExportBtn" Content="Copy"
+                            Background="#1E293B" Style="{StaticResource RunBtn}"
+                            Click="Export_Click"/>
+                    <Button Grid.Column="2" Content="Run Again"
+                            Background="#7C3AED" Style="{StaticResource RunBtn}"
+                            Click="RunAgain_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+        </Grid>
+    </Grid>
+</Window>
