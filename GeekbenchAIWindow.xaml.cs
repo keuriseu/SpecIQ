@@ -10,7 +10,11 @@ public partial class GeekbenchAIWindow : Window
     private string?                  _exePath;
     private string?                  _version;
     private CancellationTokenSource? _cts;
-    private AIBenchmarkResult?       _lastResult;
+    private AIBenchmarkResult?       _lastSingleResult;
+    private List<AIBenchmarkResult>? _lastTrialResults;
+    private string                   _lastBackendLabel = "";
+    private AIBackend                _lastBackend      = AIBackend.Cpu;
+    private int                      _lastTrials       = 1;
     private readonly DispatcherTimer _dotTimer;
     private int _dotFrame;
 
@@ -52,9 +56,12 @@ public partial class GeekbenchAIWindow : Window
             var updateStr = latestVersion != null && latestVersion != _version
                             ? $"  ·  v{latestVersion} available" : "";
             StatusText.Text = verText + updateStr;
-            RunCpuBtn.IsEnabled = true;
-            RunGpuBtn.IsEnabled = true;
-            InstallBtn.Visibility = Visibility.Collapsed;
+
+            RunCpuBtn.IsEnabled      = true;
+            RunCpuTrialsBtn.IsEnabled = true;
+            RunGpuBtn.IsEnabled      = true;
+            RunGpuTrialsBtn.IsEnabled = true;
+            InstallBtn.Visibility    = Visibility.Collapsed;
         }
         else
         {
@@ -62,11 +69,12 @@ public partial class GeekbenchAIWindow : Window
             InstallBtn.Visibility = Visibility.Visible;
         }
 
-        // Show QNN button only on Snapdragon devices
+        // Show QNN row only on Snapdragon devices
         if (GeekbenchAIService.IsSnapdragonDevice())
         {
-            RunQnnBtn.Visibility  = Visibility.Visible;
-            RunQnnBtn.IsEnabled   = _exePath != null;
+            QnnRow.Visibility        = Visibility.Visible;
+            RunQnnBtn.IsEnabled      = _exePath != null;
+            RunQnnTrialsBtn.IsEnabled = _exePath != null;
         }
     }
 
@@ -78,13 +86,21 @@ public partial class GeekbenchAIWindow : Window
 
     // ── Run ───────────────────────────────────────────────────────────────
 
-    private void RunCpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Cpu);
-    private void RunGpu_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Gpu);
-    private void RunQnn_Click(object sender, RoutedEventArgs e) => _ = RunAsync(AIBackend.Qnn);
+    private void RunCpuSingle_Click(object sender, RoutedEventArgs e)  => _ = RunAsync(AIBackend.Cpu, trials: 1);
+    private void RunCpuTrials_Click(object sender, RoutedEventArgs e)   => _ = RunAsync(AIBackend.Cpu, trials: 3);
+    private void RunGpuSingle_Click(object sender, RoutedEventArgs e)  => _ = RunAsync(AIBackend.Gpu, trials: 1);
+    private void RunGpuTrials_Click(object sender, RoutedEventArgs e)   => _ = RunAsync(AIBackend.Gpu, trials: 3);
+    private void RunQnnSingle_Click(object sender, RoutedEventArgs e)  => _ = RunAsync(AIBackend.Qnn, trials: 1);
+    private void RunQnnTrials_Click(object sender, RoutedEventArgs e)   => _ = RunAsync(AIBackend.Qnn, trials: 3);
 
-    private async Task RunAsync(AIBackend backend)
+    private void RunAgain_Click(object sender, RoutedEventArgs e) => _ = RunAsync(_lastBackend, _lastTrials);
+
+    private async Task RunAsync(AIBackend backend, int trials)
     {
         if (_exePath == null) return;
+
+        _lastBackend = backend;
+        _lastTrials  = trials;
 
         _cts = new CancellationTokenSource();
 
@@ -94,32 +110,61 @@ public partial class GeekbenchAIWindow : Window
             AIBackend.Qnn => "QNN — Snapdragon NPU",
             _             => "CPU",
         };
+        _lastBackendLabel = backendLabel;
 
-        RunSubtitleText.Text = $"{backendLabel}  ·  {Environment.MachineName}";
-        RunPhaseText.Text    = "Running…";
-        LogText.Text         = "";
+        RunSubtitleText.Text    = $"{backendLabel}  ·  {Environment.MachineName}";
+        RunTrialText.Visibility = Visibility.Collapsed;
+        RunPhaseText.Text       = "Running…";
+        LogText.Text            = "";
         ShowPanel(RunningPanel);
         _dotTimer.Start();
 
+        var results = new List<AIBenchmarkResult>();
+
         try
         {
-            var progress = new Progress<string>(line =>
+            for (int i = 0; i < trials && !_cts.Token.IsCancellationRequested; i++)
             {
-                LogText.Text += line + "\n";
-                LogScroll.ScrollToBottom();
+                if (trials > 1)
+                {
+                    RunTrialText.Text       = $"Trial {i + 1} of {trials}";
+                    RunTrialText.Visibility = Visibility.Visible;
+                    if (i > 0) LogText.Text += $"\n── Trial {i + 1} ──\n";
+                }
 
-                var t = line.Trim();
-                if (t.Contains("Single", StringComparison.OrdinalIgnoreCase) &&
-                    t.Contains("Precision", StringComparison.OrdinalIgnoreCase))
-                    RunPhaseText.Text = "Single Precision";
-                else if (t.Contains("Half", StringComparison.OrdinalIgnoreCase))
-                    RunPhaseText.Text = "Half Precision";
-                else if (t.Contains("Quantized", StringComparison.OrdinalIgnoreCase))
-                    RunPhaseText.Text = "Quantized";
-            });
+                var progress = new Progress<string>(line =>
+                {
+                    LogText.Text += line + "\n";
+                    LogScroll.ScrollToBottom();
 
-            _lastResult = await GeekbenchAIService.RunAsync(_exePath, progress, backend, _cts.Token);
-            ShowResults(_lastResult, backendLabel);
+                    var t = line.Trim();
+                    if (t.Contains("Single", StringComparison.OrdinalIgnoreCase) &&
+                        t.Contains("Precision", StringComparison.OrdinalIgnoreCase))
+                        RunPhaseText.Text = trials > 1 ? $"Trial {i + 1}  ·  Single Precision" : "Single Precision";
+                    else if (t.Contains("Half", StringComparison.OrdinalIgnoreCase))
+                        RunPhaseText.Text = trials > 1 ? $"Trial {i + 1}  ·  Half Precision" : "Half Precision";
+                    else if (t.Contains("Quantized", StringComparison.OrdinalIgnoreCase))
+                        RunPhaseText.Text = trials > 1 ? $"Trial {i + 1}  ·  Quantized" : "Quantized";
+                });
+
+                var result = await GeekbenchAIService.RunAsync(_exePath, progress, backend, _cts.Token);
+                results.Add(result);
+            }
+
+            if (results.Count == 0) { ShowPanel(ConfigPanel); return; }
+
+            if (trials == 1)
+            {
+                _lastSingleResult = results[0];
+                _lastTrialResults = null;
+                ShowResults(results[0], backendLabel);
+            }
+            else
+            {
+                _lastTrialResults = results;
+                _lastSingleResult = null;
+                ShowTrialResults(results, backendLabel);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -129,7 +174,6 @@ public partial class GeekbenchAIWindow : Window
         {
             RunPhaseText.Text  = "Error";
             LogText.Text      += $"\n{ex.Message}";
-            _dotTimer.Stop();
         }
         finally
         {
@@ -159,33 +203,104 @@ public partial class GeekbenchAIWindow : Window
         ShowPanel(ResultsPanel);
     }
 
-    private void RunAgain_Click(object sender, RoutedEventArgs e) => ShowPanel(ConfigPanel);
+    private void ShowTrialResults(List<AIBenchmarkResult> results, string backendLabel)
+    {
+        var verStr = _version != null ? $"Geekbench AI {_version}" : "Geekbench AI";
+        TrialResBackendText.Text = $"{verStr}  ·  {backendLabel}  ×3";
+        TrialResMachineText.Text = Environment.MachineName;
+
+        var fp32  = results.Select(r => r.FullPrecision).ToList();
+        var fp16  = results.Select(r => r.HalfPrecision).ToList();
+        var quant = results.Select(r => r.Quantized).ToList();
+
+        TFP32_1.Text = fp32.Count  > 0 ? $"{fp32[0]:N0}"  : "—";
+        TFP32_2.Text = fp32.Count  > 1 ? $"{fp32[1]:N0}"  : "—";
+        TFP32_3.Text = fp32.Count  > 2 ? $"{fp32[2]:N0}"  : "—";
+
+        TFP16_1.Text = fp16.Count  > 0 ? $"{fp16[0]:N0}"  : "—";
+        TFP16_2.Text = fp16.Count  > 1 ? $"{fp16[1]:N0}"  : "—";
+        TFP16_3.Text = fp16.Count  > 2 ? $"{fp16[2]:N0}"  : "—";
+
+        TQuant_1.Text = quant.Count > 0 ? $"{quant[0]:N0}" : "—";
+        TQuant_2.Text = quant.Count > 1 ? $"{quant[1]:N0}" : "—";
+        TQuant_3.Text = quant.Count > 2 ? $"{quant[2]:N0}" : "—";
+
+        TAvgFP32.Text  = fp32.Count  > 0 && fp32.Max()  > 0 ? $"{(int)fp32.Average():N0}"  : "—";
+        TAvgFP16.Text  = fp16.Count  > 0 && fp16.Max()  > 0 ? $"{(int)fp16.Average():N0}"  : "—";
+        TAvgQuant.Text = quant.Count > 0 && quant.Max() > 0 ? $"{(int)quant.Average():N0}" : "—";
+
+        ShowPanel(TrialResultsPanel);
+    }
+
+    // ── Export ────────────────────────────────────────────────────────────
 
     private void Export_Click(object sender, RoutedEventArgs e)
     {
-        if (_lastResult == null) return;
+        if (_lastSingleResult == null) return;
+        CopyToClipboard(BuildSingleExport(_lastSingleResult, _lastBackendLabel));
+        FlashButton(ExportBtn);
+    }
 
-        var backendLabel = _lastResult.Backend switch
-        {
-            AIBackend.Gpu => "GPU (OpenCL)",
-            AIBackend.Qnn => "QNN (Snapdragon NPU)",
-            _             => "CPU",
-        };
+    private void TrialExport_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastTrialResults == null) return;
+        CopyToClipboard(BuildTrialExport(_lastTrialResults, _lastBackendLabel));
+        FlashButton(TrialExportBtn);
+    }
 
+    private string BuildSingleExport(AIBenchmarkResult r, string backendLabel)
+    {
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"Geekbench AI — {Environment.MachineName}");
         if (_version != null) sb.AppendLine($"Version: {_version}");
         sb.AppendLine($"Backend: {backendLabel}");
         sb.AppendLine();
-        sb.AppendLine($"Single Precision:  {(_lastResult.FullPrecision > 0 ? _lastResult.FullPrecision.ToString("N0") : "—")}");
-        sb.AppendLine($"Half Precision:    {(_lastResult.HalfPrecision  > 0 ? _lastResult.HalfPrecision.ToString("N0")  : "—")}");
-        sb.AppendLine($"Quantized:         {(_lastResult.Quantized      > 0 ? _lastResult.Quantized.ToString("N0")      : "—")}");
+        sb.AppendLine($"Single Precision:  {(r.FullPrecision > 0 ? r.FullPrecision.ToString("N0") : "—")}");
+        sb.AppendLine($"Half Precision:    {(r.HalfPrecision  > 0 ? r.HalfPrecision.ToString("N0")  : "—")}");
+        sb.AppendLine($"Quantized:         {(r.Quantized      > 0 ? r.Quantized.ToString("N0")      : "—")}");
+        return sb.ToString();
+    }
 
-        Clipboard.SetText(sb.ToString());
+    private string BuildTrialExport(List<AIBenchmarkResult> results, string backendLabel)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"Geekbench AI ×3 Trials — {Environment.MachineName}");
+        if (_version != null) sb.AppendLine($"Version: {_version}");
+        sb.AppendLine($"Backend: {backendLabel}");
+        sb.AppendLine();
 
-        ExportBtn.Content = "Copied!";
+        for (int i = 0; i < results.Count; i++)
+        {
+            var r = results[i];
+            sb.AppendLine($"Trial {i + 1}:");
+            sb.AppendLine($"  Single Precision:  {(r.FullPrecision > 0 ? r.FullPrecision.ToString("N0") : "—")}");
+            sb.AppendLine($"  Half Precision:    {(r.HalfPrecision  > 0 ? r.HalfPrecision.ToString("N0")  : "—")}");
+            sb.AppendLine($"  Quantized:         {(r.Quantized      > 0 ? r.Quantized.ToString("N0")      : "—")}");
+        }
+
+        var fp32  = results.Select(r => r.FullPrecision).ToList();
+        var fp16  = results.Select(r => r.HalfPrecision).ToList();
+        var quant = results.Select(r => r.Quantized).ToList();
+
+        sb.AppendLine();
+        sb.AppendLine("Averages:");
+        sb.AppendLine($"  Single Precision:  {(fp32.Max()  > 0 ? ((int)fp32.Average()).ToString("N0")  : "—")}");
+        sb.AppendLine($"  Half Precision:    {(fp16.Max()  > 0 ? ((int)fp16.Average()).ToString("N0")  : "—")}");
+        sb.AppendLine($"  Quantized:         {(quant.Max() > 0 ? ((int)quant.Average()).ToString("N0") : "—")}");
+        return sb.ToString();
+    }
+
+    private static void CopyToClipboard(string text)
+    {
+        try { Clipboard.SetText(text); } catch { }
+    }
+
+    private void FlashButton(System.Windows.Controls.Button btn)
+    {
+        var original = btn.Content;
+        btn.Content = "Copied!";
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        t.Tick += (_, _) => { ExportBtn.Content = "Copy"; t.Stop(); };
+        t.Tick += (_, _) => { btn.Content = original; t.Stop(); };
         t.Start();
     }
 
@@ -193,10 +308,11 @@ public partial class GeekbenchAIWindow : Window
 
     private void ShowPanel(FrameworkElement panel)
     {
-        ConfigPanel .Visibility = Visibility.Collapsed;
-        RunningPanel.Visibility = Visibility.Collapsed;
-        ResultsPanel.Visibility = Visibility.Collapsed;
-        panel.Visibility        = Visibility.Visible;
+        ConfigPanel      .Visibility = Visibility.Collapsed;
+        RunningPanel     .Visibility = Visibility.Collapsed;
+        ResultsPanel     .Visibility = Visibility.Collapsed;
+        TrialResultsPanel.Visibility = Visibility.Collapsed;
+        panel.Visibility             = Visibility.Visible;
     }
 
     private void AnimateDots()

@@ -42,7 +42,16 @@
       "Bash(git -C C:\\\\Users\\\\Snapdragon\\\\SpecIQ diff --cached --stat)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Snapdragon\\\\SpecIQ\\\\publish\\\\\" | Select-Object Name, @{N=\"MB\";E={[math]::Round\\($_.Length/1MB,1\\)}})",
       "Bash(dotnet csi *)",
-      "Read(//c/Users/SNAPDR~1/.nuget/packages/microsoft.web.webview2/**)"
+      "Read(//c/Users/SNAPDR~1/.nuget/packages/microsoft.web.webview2/**)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "WebFetch(domain:browserbench.org)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "PowerShell(cd C:\\\\Users\\\\Snapdragon\\\\SpecIQ; $ver = \\(git describe --tags --abbrev=0 2>$null\\); if \\(-not $ver\\) { $ver = \"v0.1.0\" }; Write-Host \"Current tag: $ver\"; git tag)",
+      "WebSearch",
+      "WebFetch(domain:support.primatelabs.com)",
+      "WebFetch(domain:www.primatelabs.com)",
+      "WebFetch(domain:www.techspot.com)"
     ]
   }
 }

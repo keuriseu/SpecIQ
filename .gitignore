@@ -1,6 +1,9 @@
 bin/
 obj/
 publish/
+publish_out/
+publisharm64/
+publishx64/
 *.user
 *.suo
 .vs/

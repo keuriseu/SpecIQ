@@ -31,7 +31,7 @@
             <Setter Property="Foreground"  Value="White"/>
             <Setter Property="Cursor"      Value="Hand"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding"     Value="20,9"/>
+            <Setter Property="Padding"     Value="16,9"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -53,7 +53,7 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#EE1A1A2E" CornerRadius="14" Width="340">
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="360">
         <Border.Effect>
             <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
         </Border.Effect>
@@ -66,10 +66,9 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock x:Name="TitleVersionText" Text="GEEKBENCH" FontFamily="Segoe UI"
-                               FontSize="11" FontWeight="Bold" Foreground="#80FFFFFF"/>
-                </StackPanel>
+                <TextBlock x:Name="TitleVersionText" Grid.Column="0" Text="GEEKBENCH"
+                           FontFamily="Segoe UI" FontSize="11" FontWeight="Bold"
+                           Foreground="#80FFFFFF" VerticalAlignment="Center"/>
                 <Button Grid.Column="1" Content="✕" Click="Close_Click"
                         Background="Transparent" Foreground="#60FFFFFF"
                         FontSize="14" Padding="8,4" Cursor="Hand" BorderThickness="0">
@@ -103,25 +102,45 @@
                            HorizontalAlignment="Center" FontSize="11" Margin="0,0,0,16"/>
 
                 <StackPanel x:Name="InstallRow" Orientation="Horizontal"
-                            HorizontalAlignment="Center" Margin="0,0,0,0">
+                            HorizontalAlignment="Center">
                     <Button x:Name="InstallBtn" Content="Install" Click="Install_Click"
-                            Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,8,0"/>
+                            Background="#3B82F6" Style="{StaticResource Btn}"/>
                 </StackPanel>
 
                 <StackPanel x:Name="RunRow" Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,8">
+                    <!-- Update button -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
                         <Button x:Name="UpdateBtn" Content="Update" Click="Install_Click"
-                                Background="#30FFFFFF" Style="{StaticResource Btn}" Margin="0,0,8,0"
+                                Background="#30FFFFFF" Style="{StaticResource Btn}"
                                 Visibility="Collapsed"/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="CPU" Click="RunCpuBenchmark_Click"
-                                Background="#3B82F6" Style="{StaticResource Btn}" Margin="0,0,6,0"/>
-                        <Button Content="GPU" Click="RunGpuBenchmark_Click"
-                                Background="#8B5CF6" Style="{StaticResource Btn}" Margin="0,0,6,0"/>
-                        <Button Content="🔋 Rundown" Click="Rundown_Click"
-                                Background="#059669" Style="{StaticResource Btn}"/>
-                    </StackPanel>
+
+                    <!-- CPU row: Single | 3 Trials -->
+                    <Grid Margin="0,0,0,6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="CPU" Click="RunCpuSingle_Click"
+                                Background="#3B82F6" Style="{StaticResource Btn}"/>
+                        <Button Grid.Column="2" Content="CPU  ×3 Trials" Click="RunCpuTrials_Click"
+                                Background="#2563EB" Style="{StaticResource Btn}"/>
+                    </Grid>
+
+                    <!-- GPU row: Single | 3 Trials -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" Content="GPU" Click="RunGpuSingle_Click"
+                                Background="#8B5CF6" Style="{StaticResource Btn}"/>
+                        <Button Grid.Column="2" Content="GPU  ×3 Trials" Click="RunGpuTrials_Click"
+                                Background="#7C3AED" Style="{StaticResource Btn}"/>
+                    </Grid>
+
+                    <!-- Rundown -->
+                    <Button Content="🔋  Battery Rundown" Click="Rundown_Click"
+                            Background="#059669" Style="{StaticResource Btn}"
+                            HorizontalAlignment="Stretch"/>
                 </StackPanel>
             </StackPanel>
 
@@ -140,9 +159,7 @@
 
             <!-- ── Running panel ── -->
             <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
-
-                <!-- Phase + dots on one line -->
-                <Grid Margin="0,0,0,10">
+                <Grid Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
@@ -156,8 +173,11 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- Live CLI output log -->
-                <Border Background="#12FFFFFF" CornerRadius="6" Height="180" Margin="0,0,0,12">
+                <!-- Trial progress (hidden for single runs) -->
+                <TextBlock x:Name="RunTrialText" Text="" Style="{StaticResource Label}"
+                           FontSize="9" Margin="0,0,0,8" Visibility="Collapsed"/>
+
+                <Border Background="#12FFFFFF" CornerRadius="6" Height="160" Margin="0,0,0,12">
                     <ScrollViewer x:Name="LogScroll" VerticalScrollBarVisibility="Hidden"
                                   HorizontalScrollBarVisibility="Disabled">
                         <TextBlock x:Name="LogText" FontFamily="Consolas" FontSize="10"
@@ -171,9 +191,10 @@
                         HorizontalAlignment="Center"/>
             </StackPanel>
 
-            <!-- ── Result panel ── -->
+            <!-- ── Single result panel ── -->
             <StackPanel x:Name="ResultPanel" Visibility="Collapsed" Margin="20,16,20,20">
-                <TextBlock x:Name="ResultTitle" Text="CPU BENCHMARK RESULTS" Style="{StaticResource Label}"
+                <TextBlock x:Name="ResultTitle" Text="CPU BENCHMARK RESULTS"
+                           Style="{StaticResource Label}"
                            HorizontalAlignment="Center" Margin="0,0,0,14"/>
 
                 <Grid Margin="0,0,0,6">
@@ -181,11 +202,10 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="ResultLabelA" Grid.Column="0" Text="Single-Core" Style="{StaticResource Label}"
-                               FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" x:Name="ResultSingle" Text="—"
-                               FontSize="22" FontWeight="Bold" FontFamily="Segoe UI"
-                               Foreground="White"/>
+                    <TextBlock x:Name="ResultLabelA" Grid.Column="0" Text="Single-Core"
+                               Style="{StaticResource Label}" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="ResultSingle" Grid.Column="1" Text="—"
+                               FontSize="22" FontWeight="Bold" FontFamily="Segoe UI" Foreground="White"/>
                 </Grid>
 
                 <Border Height="1" Background="#15FFFFFF" Margin="0,6"/>
@@ -195,17 +215,98 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="ResultLabelB" Grid.Column="0" Text="Multi-Core" Style="{StaticResource Label}"
-                               FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" x:Name="ResultMulti" Text="—"
-                               FontSize="22" FontWeight="Bold" FontFamily="Segoe UI"
-                               Foreground="#60A5FA"/>
+                    <TextBlock x:Name="ResultLabelB" Grid.Column="0" Text="Multi-Core"
+                               Style="{StaticResource Label}" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="ResultMulti" Grid.Column="1" Text="—"
+                               FontSize="22" FontWeight="Bold" FontFamily="Segoe UI" Foreground="#60A5FA"/>
                 </Grid>
 
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                    <Button Content="Run Again" Click="RunCpuBenchmark_Click"
-                            Background="#30FFFFFF" Style="{StaticResource Btn}"/>
-                </StackPanel>
+                <Button Content="Run Again" Click="RunAgain_Click"
+                        Background="#30FFFFFF" Style="{StaticResource Btn}"
+                        HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ── Trials result panel ── -->
+            <StackPanel x:Name="TrialResultPanel" Visibility="Collapsed" Margin="20,16,20,20">
+                <TextBlock x:Name="TrialResultTitle" Text="CPU  ×3 TRIALS"
+                           Style="{StaticResource Label}"
+                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
+
+                <!-- Per-trial scores table: label | T1 | T2 | T3 -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="56"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Header -->
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Trial 1" Style="{StaticResource Label}"
+                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Trial 2" Style="{StaticResource Label}"
+                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Trial 3" Style="{StaticResource Label}"
+                               HorizontalAlignment="Center" Margin="0,0,0,4"/>
+
+                    <!-- Score A row -->
+                    <TextBlock x:Name="TrialLabelA" Grid.Row="1" Grid.Column="0"
+                               Text="Single" Style="{StaticResource Label}" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TrialA1" Grid.Row="1" Grid.Column="1" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TrialA2" Grid.Row="1" Grid.Column="2" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TrialA3" Grid.Row="1" Grid.Column="3" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" HorizontalAlignment="Center"/>
+
+                    <!-- Score B row -->
+                    <TextBlock x:Name="TrialLabelB" Grid.Row="2" Grid.Column="0"
+                               Text="Multi" Style="{StaticResource Label}" VerticalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="TrialB1" Grid.Row="2" Grid.Column="1" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" Foreground="#60A5FA"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="TrialB2" Grid.Row="2" Grid.Column="2" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" Foreground="#60A5FA"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="TrialB3" Grid.Row="2" Grid.Column="3" Text="—"
+                               Style="{StaticResource Value}" FontSize="12" Foreground="#60A5FA"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </Grid>
+
+                <!-- Average highlight -->
+                <Border Background="#0A3B82F6" CornerRadius="8" Padding="12,10"
+                        Margin="0,12,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock x:Name="TrialAvgLabelA" Text="AVG SINGLE"
+                                       Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="TrialAvgA" Text="—"
+                                       FontFamily="Segoe UI" FontSize="24" FontWeight="Light"
+                                       Foreground="White" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock x:Name="TrialAvgLabelB" Text="AVG MULTI"
+                                       Style="{StaticResource Label}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="TrialAvgB" Text="—"
+                                       FontFamily="Segoe UI" FontSize="24" FontWeight="Light"
+                                       Foreground="#60A5FA" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Button Content="Run Again" Click="RunAgain_Click"
+                        Background="#30FFFFFF" Style="{StaticResource Btn}"
+                        HorizontalAlignment="Center"/>
             </StackPanel>
 
         </StackPanel>
