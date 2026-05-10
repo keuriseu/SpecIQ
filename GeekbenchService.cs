@@ -40,8 +40,15 @@ public static class GeekbenchService
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Geekbench 6"),
     ];
 
-    public static string? FindInstalled() =>
-        SearchPaths.Select(d => Path.Combine(d, "geekbench6.exe")).FirstOrDefault(File.Exists);
+    public static string? FindInstalled()
+    {
+        if (SpecIQSettings.Geekbench6Path is { Length: > 0 } cached && File.Exists(cached))
+            return cached;
+
+        var found = SearchPaths.Select(d => Path.Combine(d, "geekbench6.exe")).FirstOrDefault(File.Exists);
+        if (found != null) SpecIQSettings.Geekbench6Path = found;
+        return found;
+    }
 
     public static string? GetInstalledVersion(string exePath)
     {

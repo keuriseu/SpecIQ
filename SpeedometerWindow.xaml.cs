@@ -72,6 +72,7 @@ public partial class SpeedometerWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         _cts?.Cancel();
+        _clockTimer.Stop();
         Close();
     }
 
@@ -171,7 +172,7 @@ public partial class SpeedometerWindow : Window
 
                 RunScore.Text = $"{score:F1}";
                 RunBattery.Text = $"{batteryPct}%";
-                _ = Dispatcher.BeginInvoke(DispatcherPriority.Background,
+                _ = Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
                     () => DrawChart(RunChart, _result));
 
             } while (!_cts.Token.IsCancellationRequested &&
@@ -314,7 +315,7 @@ public partial class SpeedometerWindow : Window
         TrialsRow.Visibility = isTrials ? Visibility.Visible : Visibility.Collapsed;
         StatsRow.Visibility  = !isTrials && result.Entries.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         ShowPanel(ResultsPanel);
-        Dispatcher.BeginInvoke(DispatcherPriority.Background, () => DrawChart(ResChart, result));
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }
 
     private void ResChart_Loaded(object sender, RoutedEventArgs e)
@@ -389,6 +390,11 @@ public partial class SpeedometerWindow : Window
         var slotW  = plotW / n;
         var barW   = Math.Max(slotW - gap, 2);
 
+        // For dense charts only label min/max to avoid crowding; sparse charts label all bars
+        var maxIdx = Enumerable.Range(0, n).MaxBy(i => entries[i].Score);
+        var minIdx = Enumerable.Range(0, n).MinBy(i => entries[i].Score);
+        bool ShowLabel(int i) => n <= 4 || i == maxIdx || i == minIdx;
+
         for (int i = 0; i < n; i++)
         {
             var entry   = entries[i];
@@ -413,19 +419,25 @@ public partial class SpeedometerWindow : Window
             Canvas.SetLeft(rect, barX);
             Canvas.SetTop(rect, barTop);
 
-            // Score label above bar
-            var scoreLabel = new TextBlock
+            // Score label (above bar, or inside if it would clip)
+            if (ShowLabel(i))
             {
-                Text       = $"{entry.Score:F1}",
-                FontFamily = new FontFamily("Segoe UI"),
-                FontSize   = 7.5,
-                Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-                Width      = barW + 6,
-                TextAlignment = System.Windows.TextAlignment.Center,
-            };
-            canvas.Children.Add(scoreLabel);
-            Canvas.SetLeft(scoreLabel, barX - 3);
-            Canvas.SetTop(scoreLabel, barTop - 12);
+                var scoreLabel = new TextBlock
+                {
+                    Text       = $"{entry.Score:F1}",
+                    FontFamily = new FontFamily("Segoe UI"),
+                    FontSize   = 7.5,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                    Width      = barW + 6,
+                    TextAlignment = System.Windows.TextAlignment.Center,
+                };
+                canvas.Children.Add(scoreLabel);
+                Canvas.SetLeft(scoreLabel, barX - 3);
+                var labelTop = barTop - 12;
+                if (labelTop < padT)
+                    labelTop = barH > 16 ? barTop + 2 : padT;
+                Canvas.SetTop(scoreLabel, labelTop);
+            }
 
             // X label (iteration number)
             var xLabel = new TextBlock

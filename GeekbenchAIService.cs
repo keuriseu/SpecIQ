@@ -1,38 +1,38 @@
 using System.Diagnostics;
 using System.IO;
-using System.Management;
-using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Management;
 using System.Text.RegularExpressions;
 
 namespace SpecIQ;
 
 public enum AIBackend { Cpu, Gpu, Qnn }
 
+public record AIEntry(string Framework, int FrameworkId, string Backend, int BackendId, string Device, int DeviceId);
+
 public record AIBenchmarkResult(int FullPrecision, int HalfPrecision, int Quantized, AIBackend Backend);
 
 public static class GeekbenchAIService
 {
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
-
     private static readonly string[] SearchPaths =
     [
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),    "Geekbench AI 1"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),    "Geekbench AI"),
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Geekbench AI 1"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),    "Geekbench AI 1"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Geekbench AI"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Geekbench AI 1"),
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Geekbench AI 1"),
     ];
 
     public static string? FindInstalled()
     {
-        // Check known install directories first
+        if (SpecIQSettings.BanffPath is { Length: > 0 } cached && File.Exists(cached))
+            return cached;
+
         var fromDir = SearchPaths
             .Select(d => Path.Combine(d, "banff.exe"))
             .FirstOrDefault(File.Exists);
-        if (fromDir != null) return fromDir;
+        if (fromDir != null) { SpecIQSettings.BanffPath = fromDir; return fromDir; }
 
-        // Fall back to PATH (where.exe)
         try
         {
             using var proc = Process.Start(new ProcessStartInfo("where", "banff.exe")
@@ -42,7 +42,7 @@ public static class GeekbenchAIService
                 CreateNoWindow         = true,
             });
             var line = proc?.StandardOutput.ReadLine()?.Trim();
-            if (line != null && File.Exists(line)) return line;
+            if (line != null && File.Exists(line)) { SpecIQSettings.BanffPath = line; return line; }
         }
         catch { }
 
@@ -54,6 +54,8 @@ public static class GeekbenchAIService
         try { return FileVersionInfo.GetVersionInfo(exePath).FileVersion?.Trim(); }
         catch { return null; }
     }
+
+    private static readonly System.Net.Http.HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(20) };
 
     public static async Task<string?> GetLatestVersionAsync()
     {
@@ -67,14 +69,96 @@ public static class GeekbenchAIService
     }
 
     /// <summary>
-    /// Returns true when running on a Qualcomm Snapdragon ARM64 device.
-    /// Checks both the CPU architecture and the processor name so x86 machines
-    /// with "Snapdragon" in an unrelated string don't get flagged.
+    /// Runs banff --ai-list and returns all available framework/backend/device combinations.
+    /// Times out after 8 seconds and returns an empty list so the UI never hangs.
     /// </summary>
+    public static async Task<List<AIEntry>> ListAvailableAsync(string exePath)
+    {
+        var entries = new List<AIEntry>();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            using var proc = Process.Start(new ProcessStartInfo(exePath, "--ai-list")
+            {
+                UseShellExecute        = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError  = true,
+                CreateNoWindow         = true,
+                WorkingDirectory       = Path.GetDirectoryName(exePath)!,
+            })!;
+
+            // Read both streams in parallel to avoid deadlock
+            var stdoutTask = proc.StandardOutput.ReadToEndAsync();
+            var stderrTask = proc.StandardError.ReadToEndAsync();
+            await Task.WhenAll(stdoutTask, stderrTask).WaitAsync(cts.Token);
+            await proc.WaitForExitAsync(cts.Token);
+
+            var output = stdoutTask.Result + stderrTask.Result;
+            foreach (var line in output.Split('\n'))
+            {
+                var t = line.Trim();
+                // Skip separator (+---+) and header (| Framework | ID |) rows
+                if (!t.StartsWith('|') || t.Contains("Framework") || t.Contains("---")) continue;
+
+                var cols = t.Split('|')
+                            .Select(c => c.Trim())
+                            .Where(c => c.Length > 0)
+                            .ToArray();
+                if (cols.Length < 6) continue;
+                if (!int.TryParse(cols[1], out var fwId))  continue;
+                if (!int.TryParse(cols[3], out var beId))  continue;
+                if (!int.TryParse(cols[5], out var devId)) continue;
+
+                entries.Add(new AIEntry(cols[0], fwId, cols[2], beId, cols[4], devId));
+            }
+        }
+        catch
+        {
+            // Timeout or any failure — caller falls back to DefaultEntry
+        }
+        return entries;
+    }
+
+    /// <summary>
+    /// Maps an AIEntry to the high-level CPU / GPU / NPU category used by the UI.
+    /// </summary>
+    public static AIBackend CategorizeEntry(AIEntry e)
+    {
+        if (e.Framework.Equals("QNN",      StringComparison.OrdinalIgnoreCase) ||
+            e.Backend.Equals("HTP",        StringComparison.OrdinalIgnoreCase) ||
+            e.Backend.Equals("NPU",        StringComparison.OrdinalIgnoreCase))
+            return AIBackend.Qnn;
+
+        if (e.Backend.Contains("GPU",      StringComparison.OrdinalIgnoreCase) ||
+            e.Framework.Equals("DirectML", StringComparison.OrdinalIgnoreCase) ||
+            e.Framework.Equals("OpenCL",   StringComparison.OrdinalIgnoreCase) ||
+            e.Framework.Equals("Vulkan",   StringComparison.OrdinalIgnoreCase) ||
+            e.Framework.Equals("CUDA",     StringComparison.OrdinalIgnoreCase))
+            return AIBackend.Gpu;
+
+        return AIBackend.Cpu;
+    }
+
+    /// <summary>
+    /// Human-readable label for a discovered entry (shown in the result header).
+    /// </summary>
+    public static string EntryLabel(AIEntry e) => CategorizeEntry(e) switch
+    {
+        AIBackend.Qnn => $"QNN — Snapdragon NPU",
+        AIBackend.Gpu => $"{e.Framework} — {e.Backend}",
+        _             => $"{e.Framework} — CPU",
+    };
+
+    // Sentinel: when --ai-list fails, run banff with no framework/backend flags (uses its default)
+    public static readonly AIEntry DefaultEntry = new("Default", -1, "CPU", -1, "", -1);
+
+    // Fixed entry for Snapdragon NPU — uses the framework name directly since --ai-list may time out
+    public static readonly AIEntry QnnEntry = new("QNN", -2, "NPU", -1, "Snapdragon NPU", -1);
+
+    /// <summary>Returns true when running on a Qualcomm Snapdragon ARM64 device.</summary>
     public static bool IsSnapdragonDevice()
     {
         if (RuntimeInformation.OSArchitecture != Architecture.Arm64) return false;
-
         try
         {
             using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
@@ -87,24 +171,20 @@ public static class GeekbenchAIService
             }
         }
         catch { }
-
-        // On ARM64 Windows, assume Snapdragon if WMI fails
-        return true;
+        return true; // ARM64 Windows — assume Snapdragon if WMI fails
     }
 
     public static async Task<AIBenchmarkResult> RunAsync(
         string exePath,
         IProgress<string> progress,
-        AIBackend backend,
+        AIEntry entry,
         CancellationToken ct = default)
     {
-        // Flag pattern mirrors Geekbench 6: --gpu OpenCL / --gpu Vulkan
-        // QNN uses --npu QNN per the same convention for NPU backends
-        var args = backend switch
+        var args = entry.FrameworkId switch
         {
-            AIBackend.Gpu => "--gpu OpenCL --no-upload",
-            AIBackend.Qnn => "--npu QNN --no-upload",
-            _             => "--no-upload",             // CPU
+            -2 => "--ai --ai-framework QNN --no-upload",           // Snapdragon NPU by name
+            -1 => "--ai --no-upload",                              // banff default (CPU)
+            _  => $"--ai --ai-framework {entry.FrameworkId} --ai-backend {entry.BackendId} --ai-device {entry.DeviceId} --no-upload",
         };
 
         var psi = new ProcessStartInfo(exePath, args)
@@ -112,7 +192,8 @@ public static class GeekbenchAIService
             UseShellExecute        = false,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
-            CreateNoWindow         = backend == AIBackend.Cpu,
+            CreateNoWindow         = true,
+            WorkingDirectory       = Path.GetDirectoryName(exePath)!,
         };
 
         using var proc = new Process { StartInfo = psi };
@@ -128,21 +209,26 @@ public static class GeekbenchAIService
         {
             if (e.Data?.Trim() is not { Length: > 0 } line) return;
             lines.Add(line);
-            progress.Report(line);
+            progress.Report("[err] " + line);
         };
 
         proc.Start();
         proc.BeginOutputReadLine();
         proc.BeginErrorReadLine();
 
-        try { await proc.WaitForExitAsync(ct); }
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromMinutes(45));
+
+        try { await proc.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             try { proc.Kill(entireProcessTree: true); } catch { }
-            throw;
+            ct.ThrowIfCancellationRequested();
+            throw new TimeoutException("Benchmark timed out after 45 minutes.");
         }
 
-        return ParseResult(lines, backend);
+        progress.Report($"[exit {proc.ExitCode}]");
+        return ParseResult(lines, CategorizeEntry(entry));
     }
 
     private static AIBenchmarkResult ParseResult(IEnumerable<string> lines, AIBackend backend)
@@ -153,13 +239,13 @@ public static class GeekbenchAIService
         {
             var t = line.Trim();
 
-            var m = Regex.Match(t, @"Single.Precision.Score\s+(\d+)", RegexOptions.IgnoreCase);
+            var m = Regex.Match(t, @"Single.Precision.Score\D+(\d+)", RegexOptions.IgnoreCase);
             if (m.Success) { fp32 = int.Parse(m.Groups[1].Value); continue; }
 
-            m = Regex.Match(t, @"Half.Precision.Score\s+(\d+)", RegexOptions.IgnoreCase);
+            m = Regex.Match(t, @"Half.Precision.Score\D+(\d+)", RegexOptions.IgnoreCase);
             if (m.Success) { fp16 = int.Parse(m.Groups[1].Value); continue; }
 
-            m = Regex.Match(t, @"Quantized.Score\s+(\d+)", RegexOptions.IgnoreCase);
+            m = Regex.Match(t, @"Quantized.Score\D+(\d+)", RegexOptions.IgnoreCase);
             if (m.Success) { quant = int.Parse(m.Groups[1].Value); continue; }
         }
 
