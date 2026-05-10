@@ -2,8 +2,11 @@ bin/
 obj/
 publish/
 publish_out/
+publish_x64/
+publish_arm64/
 publisharm64/
 publishx64/
 *.user
 *.suo
 .vs/
+.claude/

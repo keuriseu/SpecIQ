@@ -14,6 +14,7 @@ public partial class BenchmarkWindow : Window
     private int                       _dotFrame;
     private bool                      _lastGpu;
     private int                       _lastTrials = 1;
+    private string?                    _lastResultUrl;
 
     public BenchmarkWindow()
     {
@@ -35,6 +36,7 @@ public partial class BenchmarkWindow : Window
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         _cts?.Cancel();
+        _dotTimer.Stop();
         Close();
     }
 
@@ -81,6 +83,7 @@ public partial class BenchmarkWindow : Window
         }
 
         ShowPanel(InstallingPanel);
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
         try
@@ -133,10 +136,11 @@ public partial class BenchmarkWindow : Window
         _lastTrials = trials;
 
         ShowPanel(RunningPanel);
-        RunPhaseText.Text = trials > 1 ? "Trial 1 of 3" : "Starting…";
+        RunPhaseText.Text       = trials > 1 ? "Trial 1 of 3" : "Starting…";
         RunTrialText.Visibility = Visibility.Collapsed;
-        LogText.Text = "";
+        LogText.Text            = "";
         _dotTimer.Start();
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
         var results = new List<BenchmarkResult>();
@@ -145,19 +149,20 @@ public partial class BenchmarkWindow : Window
         {
             for (int i = 0; i < trials && !_cts.Token.IsCancellationRequested; i++)
             {
+                int trial = i;
                 if (trials > 1)
                 {
-                    RunTrialText.Text       = $"Trial {i + 1} of {trials}";
+                    RunTrialText.Text       = $"Trial {trial + 1} of {trials}";
                     RunTrialText.Visibility = Visibility.Visible;
-                    LogText.Text           += i > 0 ? $"\n── Trial {i + 1} ──\n" : "";
+                    if (trial > 0) LogText.Text += $"\n── Trial {trial + 1} ──\n";
                 }
 
                 var progress = new Progress<string>(line =>
                 {
                     if (line.Contains("Single-Core", StringComparison.OrdinalIgnoreCase))
-                        RunPhaseText.Text = trials > 1 ? $"Trial {i + 1} of {trials}  ·  Single-Core" : "Single-Core";
+                        RunPhaseText.Text = trials > 1 ? $"Trial {trial + 1} of {trials}  ·  Single-Core" : "Single-Core";
                     else if (line.Contains("Multi-Core", StringComparison.OrdinalIgnoreCase))
-                        RunPhaseText.Text = trials > 1 ? $"Trial {i + 1} of {trials}  ·  Multi-Core" : "Multi-Core";
+                        RunPhaseText.Text = trials > 1 ? $"Trial {trial + 1} of {trials}  ·  Multi-Core" : "Multi-Core";
                     else if (line.Contains("OpenCL",  StringComparison.OrdinalIgnoreCase) ||
                              line.Contains("Vulkan",  StringComparison.OrdinalIgnoreCase))
                         RunPhaseText.Text = line.Trim();
@@ -168,6 +173,16 @@ public partial class BenchmarkWindow : Window
 
                 var result = await GeekbenchService.RunAsync(exePath, progress, gpu, _cts.Token);
                 results.Add(result);
+
+                if (trials > 1 && trial < trials - 1)
+                {
+                    for (int s = 60; s > 0; s--)
+                    {
+                        RunPhaseText.Text = $"Cooldown  {s}s";
+                        try { await Task.Delay(1000, _cts.Token); }
+                        catch (OperationCanceledException) { break; }
+                    }
+                }
             }
 
             if (results.Count == 0) { ShowPanel(ReadyPanel); return; }
@@ -194,15 +209,15 @@ public partial class BenchmarkWindow : Window
 
     private void ShowSingleResult(BenchmarkResult result, bool gpu)
     {
-        _dotTimer.Stop();
-
-        ResultTitle.Text   = gpu ? "GPU BENCHMARK RESULTS" : "CPU BENCHMARK RESULTS";
-        ResultLabelA.Text  = gpu ? "OpenCL" : "Single-Core";
-        ResultLabelB.Text  = gpu ? "Vulkan"  : "Multi-Core";
-        ResultSingle.Text  = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
-        ResultMulti.Text   = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
+        ResultTitle.Text  = gpu ? "GPU BENCHMARK RESULTS" : "CPU BENCHMARK RESULTS";
+        ResultLabelA.Text = gpu ? "OpenCL" : "Single-Core";
+        ResultLabelB.Text = gpu ? "Vulkan"  : "Multi-Core";
+        ResultSingle.Text = result.SingleCore > 0 ? $"{result.SingleCore:N0}" : "—";
+        ResultMulti.Text  = result.MultiCore  > 0 ? $"{result.MultiCore:N0}"  : "—";
 
         ShowPanel(ResultPanel);
+        _lastResultUrl = result.ResultUrl;
+        ViewResultsBtn.Visibility = result.ResultUrl != null ? Visibility.Visible : Visibility.Collapsed;
 
         if (System.Windows.Application.Current.MainWindow is MainWindow main)
             main.ShowBenchmarkScore(result);
@@ -210,32 +225,29 @@ public partial class BenchmarkWindow : Window
 
     private void ShowTrialResults(List<BenchmarkResult> results, bool gpu)
     {
-        _dotTimer.Stop();
-
         var prefix = gpu ? "GPU" : "CPU";
-        TrialResultTitle.Text  = $"{prefix}  ×3 TRIALS";
-        TrialLabelA.Text       = gpu ? "OpenCL" : "Single";
-        TrialLabelB.Text       = gpu ? "Vulkan"  : "Multi";
-        TrialAvgLabelA.Text    = gpu ? "AVG OPENCL" : "AVG SINGLE";
-        TrialAvgLabelB.Text    = gpu ? "AVG VULKAN"  : "AVG MULTI";
+        TrialResultTitle.Text = $"{prefix}  ×3 TRIALS";
+        TrialLabelA.Text      = gpu ? "OpenCL" : "Single";
+        TrialLabelB.Text      = gpu ? "Vulkan"  : "Multi";
+        TrialAvgLabelA.Text   = gpu ? "AVG OPENCL" : "AVG SINGLE";
+        TrialAvgLabelB.Text   = gpu ? "AVG VULKAN"  : "AVG MULTI";
 
-        var aScores = results.Select(r => r.SingleCore).ToList();
-        var bScores = results.Select(r => r.MultiCore).ToList();
+        TrialA1.Text = results.Count > 0 ? $"{results[0].SingleCore:N0}" : "—";
+        TrialA2.Text = results.Count > 1 ? $"{results[1].SingleCore:N0}" : "—";
+        TrialA3.Text = results.Count > 2 ? $"{results[2].SingleCore:N0}" : "—";
 
-        TrialA1.Text = aScores.Count > 0 ? $"{aScores[0]:N0}" : "—";
-        TrialA2.Text = aScores.Count > 1 ? $"{aScores[1]:N0}" : "—";
-        TrialA3.Text = aScores.Count > 2 ? $"{aScores[2]:N0}" : "—";
+        TrialB1.Text = results.Count > 0 ? $"{results[0].MultiCore:N0}" : "—";
+        TrialB2.Text = results.Count > 1 ? $"{results[1].MultiCore:N0}" : "—";
+        TrialB3.Text = results.Count > 2 ? $"{results[2].MultiCore:N0}" : "—";
 
-        TrialB1.Text = bScores.Count > 0 ? $"{bScores[0]:N0}" : "—";
-        TrialB2.Text = bScores.Count > 1 ? $"{bScores[1]:N0}" : "—";
-        TrialB3.Text = bScores.Count > 2 ? $"{bScores[2]:N0}" : "—";
-
-        TrialAvgA.Text = aScores.Count > 0 && aScores.Max() > 0
-            ? $"{(int)aScores.Average():N0}" : "—";
-        TrialAvgB.Text = bScores.Count > 0 && bScores.Max() > 0
-            ? $"{(int)bScores.Average():N0}" : "—";
+        var aAvg = results.Select(r => r.SingleCore).ToList();
+        var bAvg = results.Select(r => r.MultiCore).ToList();
+        TrialAvgA.Text = aAvg.Max() > 0 ? $"{(int)aAvg.Average():N0}" : "—";
+        TrialAvgB.Text = bAvg.Max() > 0 ? $"{(int)bAvg.Average():N0}" : "—";
 
         ShowPanel(TrialResultPanel);
+        _lastResultUrl = results.LastOrDefault(r => r.ResultUrl != null)?.ResultUrl;
+        ViewTrialResultsBtn.Visibility = _lastResultUrl != null ? Visibility.Visible : Visibility.Collapsed;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -245,6 +257,12 @@ public partial class BenchmarkWindow : Window
         _cts?.Cancel();
         _dotTimer.Stop();
         ShowPanel(ReadyPanel);
+    }
+
+    private void ViewResults_Click(object sender, RoutedEventArgs e)
+    {
+        if (_lastResultUrl == null) return;
+        Process.Start(new ProcessStartInfo(_lastResultUrl) { UseShellExecute = true });
     }
 
     private void ShowPanel(FrameworkElement panel)

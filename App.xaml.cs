@@ -35,11 +35,11 @@ public partial class App : System.Windows.Application
     {
         var menu = new WinForms.ContextMenuStrip();
 
-        var showItem = new WinForms.ToolStripMenuItem("Show/Hide");
+        var showItem = new WinForms.ToolStripMenuItem("Show / Hide Overlay");
         showItem.Click += (_, _) => ToggleOverlay();
         menu.Items.Add(showItem);
 
-        var benchItem = new WinForms.ToolStripMenuItem("Run Benchmark…");
+        var benchItem = new WinForms.ToolStripMenuItem("Geekbench 6…");
         benchItem.Click += (_, _) => ShowBenchmark();
         menu.Items.Add(benchItem);
 
@@ -55,9 +55,23 @@ public partial class App : System.Windows.Application
         geekbenchAiItem.Click += (_, _) => ShowGeekbenchAI();
         menu.Items.Add(geekbenchAiItem);
 
-        var aboutItem = new WinForms.ToolStripMenuItem("About");
+        var cinebenchItem = new WinForms.ToolStripMenuItem("Cinebench…");
+        cinebenchItem.Click += (_, _) => ShowCinebench();
+        menu.Items.Add(cinebenchItem);
+
+        var aboutItem = new WinForms.ToolStripMenuItem("About SpecIQ");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
+
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+
+        var startItem = new WinForms.ToolStripMenuItem("Start with Windows")
+        {
+            Checked      = IsStartWithWindows(),
+            CheckOnClick = true,
+        };
+        startItem.Click += (_, _) => SetStartWithWindows(startItem.Checked);
+        menu.Items.Add(startItem);
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
@@ -136,6 +150,19 @@ public partial class App : System.Windows.Application
         _geekbenchAIWindow.Show();
     }
 
+    private CinebenchWindow? _cinebenchWindow;
+
+    private void ShowCinebench()
+    {
+        if (_cinebenchWindow is { IsLoaded: true })
+        {
+            _cinebenchWindow.Activate();
+            return;
+        }
+        _cinebenchWindow = new CinebenchWindow();
+        _cinebenchWindow.Show();
+    }
+
     private AboutWindow? _aboutWindow;
 
     private void ShowAbout()
@@ -147,6 +174,38 @@ public partial class App : System.Windows.Application
         }
         _aboutWindow = new AboutWindow();
         _aboutWindow.Show();
+    }
+
+    private const string RunRegistryKey   = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+    private const string RunRegistryValue = "SpecIQ";
+
+    private static bool IsStartWithWindows()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey, writable: false);
+            return key?.GetValue(RunRegistryValue) != null;
+        }
+        catch { return false; }
+    }
+
+    private static void SetStartWithWindows(bool enable)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(RunRegistryKey, writable: true);
+            if (enable)
+            {
+                var exePath = Environment.ProcessPath
+                    ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+                key?.SetValue(RunRegistryValue, $"\"{exePath}\"");
+            }
+            else
+            {
+                key?.DeleteValue(RunRegistryValue, throwOnMissingValue: false);
+            }
+        }
+        catch { }
     }
 
     protected override void OnExit(ExitEventArgs e)

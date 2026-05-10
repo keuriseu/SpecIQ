@@ -13,6 +13,7 @@ public partial class CinebenchWindow : Window
     private CancellationTokenSource? _cts;
     private CinebenchMode            _lastMode   = CinebenchMode.Both;
     private int                      _lastTrials = 1;
+    private CinebenchSavedResult?      _previousResult;
     private readonly DispatcherTimer _dotTimer;
     private int                      _dotFrame;
 
@@ -51,6 +52,7 @@ public partial class CinebenchWindow : Window
         if (_exePath != null)
             SpecIQSettings.CinebenchPath = _exePath;
 
+        _previousResult = CinebenchSavedResult.Load();
         RefreshReady();
     }
 
@@ -63,6 +65,14 @@ public partial class CinebenchWindow : Window
             TitleVersionText.Text  = shortVer != null ? $"CINEBENCH {shortVer}" : "CINEBENCH";
             StatusText.Text        = shortVer ?? "Installed";
             NotFoundRow.Visibility = Visibility.Collapsed;
+            if (_previousResult != null)
+            {
+                var s = _previousResult.SingleCore > 0 ? $"Single {Fmt(_previousResult.SingleCore)}" : "";
+                var m = _previousResult.MultiCore  > 0 ? $"Multi {Fmt(_previousResult.MultiCore)}"   : "";
+                var sep = s.Length > 0 && m.Length > 0 ? "  ·  " : "";
+                PreviousSummaryText.Text     = s + sep + m;
+                PreviousResultsBorder.Visibility = Visibility.Visible;
+            }
             RunRow.Visibility      = Visibility.Visible;
         }
         else
@@ -187,6 +197,9 @@ public partial class CinebenchWindow : Window
         ResultSingle.Text = mode == CinebenchMode.Multi  ? "—" : Fmt(result.SingleCore);
         ResultMulti.Text  = mode == CinebenchMode.Single ? "—" : Fmt(result.MultiCore);
         ShowPanel(ResultPanel);
+        var saved = new CinebenchSavedResult { SingleCore = result.SingleCore, MultiCore = result.MultiCore };
+        saved.Save();
+        _previousResult = saved;
     }
 
     private void ShowTrialResults(List<CinebenchResult> results, CinebenchMode mode)
@@ -205,6 +218,11 @@ public partial class CinebenchWindow : Window
             results.Select(r => r.MultiCore).Max() > 0 ? Fmt(results.Average(r => r.MultiCore)) : "—";
 
         ShowPanel(TrialResultPanel);
+        var avgS = results.Select(r => r.SingleCore).Average();
+        var avgM = results.Select(r => r.MultiCore).Average();
+        var saved = new CinebenchSavedResult { SingleCore = avgS, MultiCore = avgM };
+        saved.Save();
+        _previousResult = saved;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -214,6 +232,14 @@ public partial class CinebenchWindow : Window
         _cts?.Cancel();
         _dotTimer.Stop();
         ShowPanel(ReadyPanel);
+    }
+
+    private void ViewPrevious_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (_previousResult == null) return;
+        ResultSingle.Text = _previousResult.SingleCore > 0 ? Fmt(_previousResult.SingleCore) : "—";
+        ResultMulti.Text  = _previousResult.MultiCore  > 0 ? Fmt(_previousResult.MultiCore)  : "—";
+        ShowPanel(ResultPanel);
     }
 
     private void ShowPanel(FrameworkElement panel)

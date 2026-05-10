@@ -46,8 +46,8 @@ public partial class MainWindow : Window
     private long _lastBytesReceived;
     private long _lastBytesSent;
     private DateTime _lastNetworkCheck = DateTime.MinValue;
-    private string? _npuCategory;
-    private string? _npuCounterName;
+    private List<PerformanceCounter> _npuCounters = [];
+    private bool _npuReady;
     private List<PerformanceCounter> _gpuCounters = [];
     private bool _gpuReady;
 
@@ -106,17 +106,17 @@ public partial class MainWindow : Window
         _cpuCounter = new PerformanceCounter("Processor Information", "% Processor Utility", "_Total", true);
         _cpuCounter.NextValue();
 
-        DetectNpuCounter();
-
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
         _timer.Tick += Timer_Tick;
 
-        // Init GPU counters on background thread with 1s delay so primed values are valid
+        // Init GPU and NPU counters on background thread with 1s delay so primed values are valid
         Task.Run(async () =>
         {
             await Task.Delay(1000);
             InitGpuCounters();
             _gpuReady = true;
+            InitNpuCounters();
+            _npuReady = true;
         });
 
         // Pre-fetch battery capacity off the UI thread at startup
@@ -536,29 +536,36 @@ public partial class MainWindow : Window
         }
     }
 
-    private void DetectNpuCounter()
-    {
-        var candidates = new[]
-        {
-            ("NPU", "Utilization Percentage"),
-            ("NPU Engine", "Utilization Percentage"),
-            ("Neural Processing Unit", "% Utilization"),
-            ("Qualcomm NPU", "Utilization Percentage"),
-            ("Hexagon NPU", "Utilization Percentage"),
-            ("Intel NPU", "% NPU Utilization"),
-            ("Intel(R) AI Boost", "% NPU Utilization"),
-        };
+    private static readonly (string Category, string Counter)[] NpuCandidates =
+    [
+        ("NPU",                  "Utilization Percentage"),
+        ("NPU Engine",           "Utilization Percentage"),
+        ("Neural Processing Unit", "% Utilization"),
+        ("Qualcomm NPU",         "Utilization Percentage"),
+        ("Hexagon NPU",          "Utilization Percentage"),
+        ("Intel NPU",            "% NPU Utilization"),
+        ("Intel(R) AI Boost",    "% NPU Utilization"),
+    ];
 
-        foreach (var (category, counter) in candidates)
+    private void InitNpuCounters()
+    {
+        foreach (var (category, counterName) in NpuCandidates)
         {
             try
             {
-                if (PerformanceCounterCategory.Exists(category))
-                {
-                    _npuCategory = category;
-                    _npuCounterName = counter;
-                    return;
-                }
+                if (!PerformanceCounterCategory.Exists(category)) continue;
+
+                var cat = new PerformanceCounterCategory(category);
+                var counters = cat.GetInstanceNames()
+                    .Select(instance => new PerformanceCounter(category, counterName, instance, true))
+                    .ToList();
+
+                if (counters.Count == 0) continue;
+
+                // Prime values so first real read isn't zero
+                foreach (var c in counters) c.NextValue();
+                _npuCounters = counters;
+                return;
             }
             catch { }
         }
@@ -566,30 +573,31 @@ public partial class MainWindow : Window
 
     private void UpdateNpu()
     {
-        if (_npuCategory == null) { NpuText.Text = "N/A"; NpuBar.Width = 0; return; }
+        if (!_npuReady || _npuCounters.Count == 0)
+        {
+            NpuText.Text = _npuReady ? "N/A" : "--";
+            NpuBar.Width = 0;
+            return;
+        }
 
         try
         {
-            var category = new PerformanceCounterCategory(_npuCategory);
             float total = 0;
-            int count = 0;
+            foreach (var c in _npuCounters) total += c.NextValue();
+            total = Math.Clamp(total, 0f, 100f);
 
-            foreach (var instance in category.GetInstanceNames())
-            {
-                var counters = category.GetCounters(instance);
-                foreach (var c in counters)
-                {
-                    if (c.CounterName == _npuCounterName) { total += c.NextValue(); count++; }
-                    c.Dispose();
-                }
-            }
-
-            float util = count > 0 ? Math.Min(total, 100f) : 0f;
-            NpuText.Text = $"{util:F0}%";
-            NpuBar.Width = TrackWidth(NpuBar) * util / 100.0;
-            NpuBar.Background = LoadBrush(util, BrushPink);
+            NpuText.Text = $"{total:F0}%";
+            NpuBar.Width = TrackWidth(NpuBar) * total / 100.0;
+            NpuBar.Background = LoadBrush(total, BrushPink);
         }
-        catch { NpuText.Text = "N/A"; NpuBar.Width = 0; }
+        catch
+        {
+            foreach (var c in _npuCounters) c.Dispose();
+            _npuReady = false;
+            Task.Run(async () => { await Task.Delay(1000); InitNpuCounters(); _npuReady = true; });
+            NpuText.Text = "0%";
+            NpuBar.Width = 0;
+        }
     }
 
     [DllImport("powrprof.dll")]
@@ -711,6 +719,7 @@ public partial class MainWindow : Window
         if (_powerNotifHandle != IntPtr.Zero) UnregisterPowerSettingNotification(_powerNotifHandle);
         _cpuCounter.Dispose();
         foreach (var c in _gpuCounters) c.Dispose();
+        foreach (var c in _npuCounters) c.Dispose();
 #if DEBUG
         DevServer.Stop();
 #endif
