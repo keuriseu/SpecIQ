@@ -112,6 +112,46 @@
                     </Grid>
                 </Border>
 
+                <!-- Previous result (shown after first benchmark) -->
+                <Border x:Name="PreviousBorder" Visibility="Collapsed"
+                        Background="#0FFFFFFF" CornerRadius="6"
+                        Padding="12,8" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock x:Name="PrevHeaderText"
+                                   FontSize="9" FontWeight="SemiBold"
+                                   Foreground="#60FFFFFF" Margin="0,0,0,6"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="FULL" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="#70FFFFFF" HorizontalAlignment="Center"
+                                           Margin="0,0,0,2"/>
+                                <TextBlock x:Name="PrevFP32" Text="—" FontSize="14"
+                                           FontWeight="SemiBold" Foreground="#A78BFA"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                <TextBlock Text="HALF" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="#70FFFFFF" HorizontalAlignment="Center"
+                                           Margin="0,0,0,2"/>
+                                <TextBlock x:Name="PrevFP16" Text="—" FontSize="14"
+                                           FontWeight="SemiBold" Foreground="#818CF8"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="QUANT" FontSize="9" FontWeight="SemiBold"
+                                           Foreground="#70FFFFFF" HorizontalAlignment="Center"
+                                           Margin="0,0,0,2"/>
+                                <TextBlock x:Name="PrevQuant" Text="—" FontSize="14"
+                                           FontWeight="SemiBold" Foreground="#34D399"
+                                           HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- QNN row (Snapdragon only) -->
                 <Grid x:Name="QnnRow" Visibility="Collapsed" Margin="0,0,0,6">
                     <Grid.ColumnDefinitions>

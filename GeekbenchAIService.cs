@@ -267,3 +267,43 @@ public static class GeekbenchAIService
         return new AIBenchmarkResult(fp32, fp16, quant, backend);
     }
 }
+
+public class AIBenchmarkSavedResult
+{
+    public int    FullPrecision { get; set; }
+    public int    HalfPrecision { get; set; }
+    public int    Quantized     { get; set; }
+    public string Backend       { get; set; } = "";
+    public string MachineName   { get; set; } = Environment.MachineName;
+    public string SavedAt       { get; set; } = DateTime.Now.ToString("o");
+
+    private static readonly string FilePath = System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "SpecIQ", "geekbench-ai.json");
+
+    private static readonly System.Text.Json.JsonSerializerOptions JsonOpts =
+        new() { WriteIndented = true };
+
+    public void Save()
+    {
+        try
+        {
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(FilePath)!);
+            System.IO.File.WriteAllText(FilePath,
+                System.Text.Json.JsonSerializer.Serialize(this, JsonOpts));
+        }
+        catch { }
+    }
+
+    public static AIBenchmarkSavedResult? Load()
+    {
+        try
+        {
+            return System.IO.File.Exists(FilePath)
+                ? System.Text.Json.JsonSerializer.Deserialize<AIBenchmarkSavedResult>(
+                    System.IO.File.ReadAllText(FilePath), JsonOpts)
+                : null;
+        }
+        catch { return null; }
+    }
+}
