@@ -152,6 +152,7 @@ public partial class BenchmarkWindow : Window
         };
 
         var results = new List<BenchmarkResult>();
+        BenchmarkGuard.Begin();
 
         try
         {
@@ -208,6 +209,7 @@ public partial class BenchmarkWindow : Window
         }
         finally
         {
+            BenchmarkGuard.End();
             _dotTimer.Stop();
             _cts = null;
         }

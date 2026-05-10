@@ -137,6 +137,7 @@ public partial class CinebenchWindow : Window
         _cts = new CancellationTokenSource();
 
         var results = new List<CinebenchResult>();
+        BenchmarkGuard.Begin();
 
         try
         {
@@ -184,6 +185,7 @@ public partial class CinebenchWindow : Window
         }
         finally
         {
+            BenchmarkGuard.End();
             _dotTimer.Stop();
             _cts = null;
         }

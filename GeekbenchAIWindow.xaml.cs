@@ -176,6 +176,7 @@ public partial class GeekbenchAIWindow : Window
         };
 
         var results = new List<AIBenchmarkResult>();
+        BenchmarkGuard.Begin();
 
         try
         {
@@ -249,6 +250,7 @@ public partial class GeekbenchAIWindow : Window
         }
         finally
         {
+            BenchmarkGuard.End();
             _dotTimer.Stop();
             _cts = null;
         }

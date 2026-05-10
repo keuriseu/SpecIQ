@@ -438,11 +438,18 @@ public partial class MainWindow : Window
         UpdateCpu();
         UpdateTrayTooltip();
         UpdateRam();
-        UpdateGpu();
-        UpdateNpu();
+
+        // Skip expensive perf-counter and network reads while a benchmark is running
+        // so SpecIQ does not compete for resources and skew results.
+        if (!BenchmarkGuard.IsActive)
+        {
+            UpdateGpu();
+            UpdateNpu();
+            UpdateNetwork();
+        }
+
         UpdatePowerMode();
         UpdateEnergySaver();
-        UpdateNetwork();
 #if DEBUG
         PublishStats(_lastPower);
 #endif
@@ -532,9 +539,13 @@ public partial class MainWindow : Window
         {
             while (_thermalPolling)
             {
-                var temp = ThermalService.ReadCpuTempC();
-                await Dispatcher.InvokeAsync(() => { _lastTempC = temp; UpdateTemp(); });
-                await Task.Delay(5000);
+                // Skip WMI call during benchmark runs; use a longer sleep to yield resources.
+                if (!BenchmarkGuard.IsActive)
+                {
+                    var temp = ThermalService.ReadCpuTempC();
+                    await Dispatcher.InvokeAsync(() => { _lastTempC = temp; UpdateTemp(); });
+                }
+                await Task.Delay(BenchmarkGuard.IsActive ? 15_000 : 5_000);
             }
         });
     }

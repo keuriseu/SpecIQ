@@ -130,6 +130,7 @@ public partial class RundownWindow : Window
         _stopwatch.Restart();
         _clockTimer.Start();
         PreventSleep();
+        BenchmarkGuard.Begin();
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
         var progress = new Progress<RundownProgress>(OnProgress);
@@ -145,6 +146,7 @@ public partial class RundownWindow : Window
         }
         finally
         {
+            BenchmarkGuard.End();
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             _stopwatch.Stop();
             _clockTimer.Stop();
