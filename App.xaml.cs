@@ -71,6 +71,10 @@ public partial class App : System.Windows.Application
         cinebenchItem.Click += (_, _) => ShowCinebench();
         menu.Items.Add(cinebenchItem);
 
+        var procyonItem = new WinForms.ToolStripMenuItem("Procyon AI CV…");
+        procyonItem.Click += (_, _) => ShowProcyon();
+        menu.Items.Add(procyonItem);
+
         var aboutItem = new WinForms.ToolStripMenuItem("About SpecIQ");
         aboutItem.Click += (_, _) => ShowAbout();
         menu.Items.Add(aboutItem);
@@ -212,6 +216,19 @@ public partial class App : System.Windows.Application
         }
         _cinebenchWindow = new CinebenchWindow();
         _cinebenchWindow.Show();
+    }
+
+    private ProcyonWindow? _procyonWindow;
+
+    internal void ShowProcyon()
+    {
+        if (_procyonWindow is { IsLoaded: true })
+        {
+            _procyonWindow.Activate();
+            return;
+        }
+        _procyonWindow = new ProcyonWindow();
+        _procyonWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;

@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace SpecIQ;
 
-public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench }
+public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV }
 
 public class HistoryEntry
 {

@@ -1,0 +1,402 @@
+<Window x:Class="SpecIQ.ProcyonWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Procyon AI CV"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Topmost="True"
+        ShowInTaskbar="True"
+        MouseLeftButtonDown="TitleBar_MouseDown">
+
+    <Window.Resources>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#70FFFFFF"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="ModelLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize"   Value="9"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#60FFFFFF"/>
+        </Style>
+        <Style x:Key="ModelScore" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize"   Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style x:Key="TrialScore" TargetType="TextBlock">
+            <Setter Property="FontFamily"          Value="Segoe UI"/>
+            <Setter Property="FontSize"            Value="15"/>
+            <Setter Property="FontWeight"          Value="SemiBold"/>
+            <Setter Property="Foreground"          Value="White"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="460">
+        <Border.Effect>
+            <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
+        </Border.Effect>
+
+        <StackPanel>
+
+            <!-- ── Title bar ── -->
+            <Grid Margin="20,16,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="PROCYON" FontSize="11" FontWeight="Bold" Foreground="#0EA5E9"
+                               FontFamily="Segoe UI"/>
+                    <TextBlock Text="  AI COMPUTER VISION" FontSize="11" FontWeight="Bold"
+                               Foreground="#94A3B8" FontFamily="Segoe UI"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CloseBtn}" Click="Close_Click"/>
+            </Grid>
+
+            <Border Height="1" Background="#15FFFFFF" Margin="0,12,0,0"/>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 CONFIG PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="Six-model AI inference benchmark (MobileNetV3, InceptionV4, ResNet50, DeepLabV3, YOLOv3, ESRGAN)."
+                           Foreground="#70FFFFFF" FontSize="11" FontFamily="Segoe UI"
+                           TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                <!-- Status bar -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="PROCYON" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="StatusText" Text="Checking…"
+                                   FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Previous result (populated from history) -->
+                <Border x:Name="PreviousBorder" Visibility="Collapsed"
+                        Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,14">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="LAST RESULT" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="PrevNoteText" FontSize="10" FontFamily="Segoe UI"
+                                       Foreground="#80FFFFFF"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" x:Name="PrevScoreText" Text="—"
+                                   FontSize="22" FontWeight="Light" FontFamily="Segoe UI"
+                                   Foreground="#0EA5E9" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- ── Backend picker ── -->
+                <TextBlock Text="BACKEND" Style="{StaticResource Lbl}" Margin="0,0,0,6"/>
+
+                <StackPanel Margin="0,0,0,12">
+                    <!-- Row 1: CPU | GPU FP32 -->
+                    <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="BtnCpuF32" Grid.Column="0" Content="CPU  ·  FP32"
+                                Background="#1E293B" Style="{StaticResource Btn}"
+                                Padding="10,8" Click="BtnCpuF32_Click"/>
+                        <Button x:Name="BtnGpuF32" Grid.Column="2" Content="GPU  ·  FP32"
+                                Background="#1E293B" Style="{StaticResource Btn}"
+                                Padding="10,8" Click="BtnGpuF32_Click"/>
+                    </Grid>
+                    <!-- Row 2: GPU FP16 | GPU INT -->
+                    <Grid Margin="0,0,0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="BtnGpuF16" Grid.Column="0" Content="GPU  ·  FP16"
+                                Background="#0EA5E9" Style="{StaticResource Btn}"
+                                Padding="10,8" Click="BtnGpuF16_Click"/>
+                        <Button x:Name="BtnGpuInt" Grid.Column="2" Content="GPU  ·  INT"
+                                Background="#1E293B" Style="{StaticResource Btn}"
+                                Padding="10,8" Click="BtnGpuInt_Click"/>
+                    </Grid>
+                    <!-- Row 3: NPU (Snapdragon only, hidden by default) -->
+                    <Button x:Name="BtnNpuQnn" Visibility="Collapsed"
+                            Content="NPU  ·  INT8  (QNN / Snapdragon)"
+                            Background="#1E293B" Style="{StaticResource Btn}"
+                            Padding="10,8" HorizontalAlignment="Stretch"
+                            Click="BtnNpuQnn_Click"/>
+                </StackPanel>
+
+                <!-- Run buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="RunSingleBtn" Grid.Column="0" Content="Run Single"
+                            Background="#0369A1" Style="{StaticResource Btn}" Click="RunSingle_Click"/>
+                    <Button x:Name="RunTrialsBtn" Grid.Column="2" Content="Run  ×3 Trials"
+                            Background="#0284C7" Style="{StaticResource Btn}" Click="RunTrials_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 RUNNING PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="RunSubtitleText" FontSize="11" FontFamily="Segoe UI"
+                           Foreground="#94A3B8" Margin="0,0,0,4"/>
+                <TextBlock x:Name="RunTrialText" FontSize="9" FontFamily="Segoe UI"
+                           Foreground="#60FFFFFF" Margin="0,0,0,10" Visibility="Collapsed"/>
+
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBlock x:Name="RunPhaseText" FontSize="13" FontWeight="SemiBold"
+                               FontFamily="Segoe UI" Foreground="#0EA5E9"/>
+                    <TextBlock x:Name="Dot1" Text=" ●" FontSize="8" Foreground="#0EA5E9"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2"/>
+                    <TextBlock x:Name="Dot2" Text="●" FontSize="8" Foreground="#0EA5E9"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2" Opacity="0.5"/>
+                    <TextBlock x:Name="Dot3" Text="●" FontSize="8" Foreground="#0EA5E9"
+                               VerticalAlignment="Bottom" Margin="2,0,0,2" Opacity="0.25"/>
+                </StackPanel>
+
+                <ScrollViewer x:Name="LogScroll" MaxHeight="160" Margin="0,8,0,12"
+                              VerticalScrollBarVisibility="Auto" Background="#08FFFFFF">
+                    <TextBlock x:Name="LogText" FontSize="9" FontFamily="Consolas"
+                               Foreground="#70FFFFFF" TextWrapping="Wrap" Padding="8"/>
+                </ScrollViewer>
+
+                <StackPanel HorizontalAlignment="Center">
+                    <Button x:Name="CancelBtn" Content="Cancel" Background="#DC2626"
+                            Style="{StaticResource Btn}" Click="Cancel_Click"/>
+                    <StackPanel x:Name="CancelConfirmPanel" Visibility="Collapsed"
+                                Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
+                        <TextBlock Text="Cancel run?" Foreground="#80FFFFFF" FontSize="11"
+                                   FontFamily="Segoe UI" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Yes" Click="CancelConfirm_Click" Background="#DC2626"
+                                Style="{StaticResource Btn}" Padding="14,7" Margin="0,0,6,0"/>
+                        <Button Content="Keep running" Click="CancelDismiss_Click"
+                                Background="#30FFFFFF" Style="{StaticResource Btn}" Padding="14,7"/>
+                    </StackPanel>
+                </StackPanel>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 SINGLE RESULTS PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <!-- Header -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock Text="OVERALL SCORE" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="ResBackendText" FontSize="11" FontFamily="Segoe UI"
+                                   Foreground="#70FFFFFF"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" x:Name="ResOverall" Text="—"
+                               FontSize="40" FontWeight="Light" FontFamily="Segoe UI"
+                               Foreground="#0EA5E9" VerticalAlignment="Center"/>
+                </Grid>
+
+                <Border Height="1" Background="#10FFFFFF" Margin="0,0,0,14"/>
+
+                <!-- CV1 model scores (6 models in a 2-col grid) -->
+                <Grid x:Name="Cv1ModelsGrid" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="1"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Vertical divider -->
+                    <Border Grid.Column="1" Grid.RowSpan="5" Background="#10FFFFFF"/>
+
+                    <!-- Row 0 -->
+                    <StackPanel Grid.Row="0" Grid.Column="0">
+                        <TextBlock Text="MOBILENETV3" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResMobileNet" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Row="0" Grid.Column="2" Margin="14,0,0,0">
+                        <TextBlock Text="INCEPTIONV4" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResInception" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Row 2 -->
+                    <StackPanel Grid.Row="2" Grid.Column="0">
+                        <TextBlock Text="RESNET50" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResResNet" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Row="2" Grid.Column="2" Margin="14,0,0,0">
+                        <TextBlock Text="DEEPLABV3" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResDeepLab" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Row 4 -->
+                    <StackPanel Grid.Row="4" Grid.Column="0">
+                        <TextBlock Text="YOLOV3" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResYolo" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Row="4" Grid.Column="2" Margin="14,0,0,0">
+                        <TextBlock Text="ESRGAN" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResEsrgan" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- CV2 (NPU) model scores (3 models in a row) -->
+                <Grid x:Name="Cv2ModelsGrid" Visibility="Collapsed" Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="1"/><ColumnDefinition/><ColumnDefinition Width="1"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="1" Background="#10FFFFFF"/>
+                    <Border Grid.Column="3" Background="#10FFFFFF"/>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="CONVNEXTTINY" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResConvNext" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Margin="14,0,0,0">
+                        <TextBlock Text="BLIP BASE" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResBlip" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="4" Margin="14,0,0,0">
+                        <TextBlock Text="VIDEO" Style="{StaticResource ModelLabel}" Margin="0,0,0,2"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="ResVideo" Text="—" Style="{StaticResource ModelScore}"/>
+                            <TextBlock Text=" img/s" FontSize="9" FontFamily="Segoe UI"
+                                       Foreground="#50FFFFFF" VerticalAlignment="Bottom" Margin="0,0,0,2"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Actions -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Run Again" Background="#0369A1"
+                            Style="{StaticResource Btn}" Click="RunAgain_Click"/>
+                    <Button Grid.Column="2" x:Name="ResRundownBtn" Content="Battery Rundown…"
+                            Background="#30FFFFFF" Style="{StaticResource Btn}" Click="Rundown_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 TRIAL RESULTS PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="TrialResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="TrialHeaderText" FontSize="12" FontWeight="SemiBold"
+                           FontFamily="Segoe UI" Foreground="White" Margin="0,0,0,2"/>
+                <TextBlock x:Name="TrialBackendText" FontSize="10" FontFamily="Segoe UI"
+                           Foreground="#60FFFFFF" Margin="0,0,0,14"/>
+
+                <!-- Trial overall scores -->
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="60"/>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Headers -->
+                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Trial 1" Style="{StaticResource Lbl}"
+                               HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="0" Grid.Column="2" Text="Trial 2" Style="{StaticResource Lbl}"
+                               HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Trial 3" Style="{StaticResource Lbl}"
+                               HorizontalAlignment="Center" Margin="0,0,0,6"/>
+
+                    <!-- Scores -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Score" Style="{StaticResource Lbl}"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TScore1" Grid.Row="1" Grid.Column="1" Text="—"
+                               Style="{StaticResource TrialScore}" Foreground="#0EA5E9"/>
+                    <TextBlock x:Name="TScore2" Grid.Row="1" Grid.Column="2" Text="—"
+                               Style="{StaticResource TrialScore}" Foreground="#0EA5E9"/>
+                    <TextBlock x:Name="TScore3" Grid.Row="1" Grid.Column="3" Text="—"
+                               Style="{StaticResource TrialScore}" Foreground="#0EA5E9"/>
+                </Grid>
+
+                <!-- Average card -->
+                <Border Background="#140EA5E9" CornerRadius="8" Padding="0,12" Margin="0,14,0,16">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="AVERAGE" Style="{StaticResource Lbl}"
+                                   HorizontalAlignment="Center" Margin="0,0,0,4"/>
+                        <TextBlock x:Name="TAvgScore" Text="—"
+                                   FontSize="32" FontWeight="Light" FontFamily="Segoe UI"
+                                   Foreground="#0EA5E9" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Run Again" Background="#0369A1"
+                            Style="{StaticResource Btn}" Click="RunAgain_Click"/>
+                    <Button Grid.Column="2" Content="Battery Rundown…" Background="#30FFFFFF"
+                            Style="{StaticResource Btn}" Click="Rundown_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+</Window>

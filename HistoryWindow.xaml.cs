@@ -61,6 +61,7 @@ public partial class HistoryWindow : Window
             HistoryTool.Geekbench6  => ("#3B82F6", "GB6"),
             HistoryTool.GeekbenchAI => ("#8B5CF6", "GBAI"),
             HistoryTool.Cinebench   => ("#F59E0B", "CB"),
+            HistoryTool.ProcyonCV   => ("#0EA5E9", "PCV"),
             _                       => ("#6B7280", "?"),
         };
 
@@ -187,6 +188,9 @@ public partial class HistoryWindow : Window
             case HistoryTool.Cinebench:
                 if (e.ScoreA > 0) yield return ("1T", $"{(int)e.ScoreA:N0}");
                 if (e.ScoreB > 0) yield return ("nT", $"{(int)e.ScoreB:N0}");
+                break;
+            case HistoryTool.ProcyonCV:
+                if (e.ScoreA > 0) yield return ("Score", $"{(int)e.ScoreA:N0}");
                 break;
         }
     }

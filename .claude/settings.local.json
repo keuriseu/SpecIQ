@@ -51,7 +51,17 @@
       "WebSearch",
       "WebFetch(domain:support.primatelabs.com)",
       "WebFetch(domain:www.primatelabs.com)",
-      "WebFetch(domain:www.techspot.com)"
+      "WebFetch(domain:www.techspot.com)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(git rm *)",
+      "Bash(git restore *)",
+      "Bash(tasklist)",
+      "Bash(findstr -i speciq)",
+      "Bash(find /mnt/c/ -name \"banff.exe\" 2>/dev/null | head -5)",
+      "WebFetch(domain:www.laptopmag.com)",
+      "Bash(powershell.exe -Command \"Get-Command banff -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source; Get-ChildItem -Path 'C:\\\\' -Filter 'banff.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName\")",
+      "Bash(git reset *)",
+      "Bash(cd C:\\\\\\\\Users\\\\\\\\Snapdragon\\\\\\\\SpecIQ)"
     ]
   }
 }
