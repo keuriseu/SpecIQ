@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Clipboard = System.Windows.Clipboard;
@@ -20,6 +21,7 @@ public partial class GeekbenchAIWindow : Window
     private readonly DispatcherTimer _dotTimer;
     private int                      _dotFrame;
     private AIBenchmarkSavedResult?  _previousResult;
+    private bool                     _logScrollLocked;
 
     public GeekbenchAIWindow()
     {
@@ -161,10 +163,17 @@ public partial class GeekbenchAIWindow : Window
         RunTrialText.Visibility = Visibility.Collapsed;
         RunPhaseText.Text       = "Running…";
         LogText.Text            = "";
+        _logScrollLocked        = false;
         ShowPanel(RunningPanel);
         _dotTimer.Start();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
+
+        LogScroll.ScrollChanged += (_, e) =>
+        {
+            if (e.ExtentHeightChange == 0)
+                _logScrollLocked = LogScroll.VerticalOffset < LogScroll.ScrollableHeight - 2;
+        };
 
         var results = new List<AIBenchmarkResult>();
 
@@ -183,7 +192,7 @@ public partial class GeekbenchAIWindow : Window
                 var progress = new Progress<string>(line =>
                 {
                     LogText.Text += line + "\n";
-                    LogScroll.ScrollToBottom();
+                    if (!_logScrollLocked) LogScroll.ScrollToBottom();
 
                     var t = line.Trim();
                     if (t.Contains("Single", StringComparison.OrdinalIgnoreCase) &&
@@ -247,8 +256,21 @@ public partial class GeekbenchAIWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        CancelBtn.Visibility          = Visibility.Collapsed;
+        CancelConfirmPanel.Visibility = Visibility.Visible;
+    }
+
+    private void CancelConfirm_Click(object sender, RoutedEventArgs e)
+    {
         _cts?.Cancel();
         _dotTimer.Stop();
+        ShowPanel(ConfigPanel);
+    }
+
+    private void CancelDismiss_Click(object sender, RoutedEventArgs e)
+    {
+        CancelConfirmPanel.Visibility = Visibility.Collapsed;
+        CancelBtn.Visibility          = Visibility.Visible;
     }
 
     // ── Results ───────────────────────────────────────────────────────────
@@ -299,6 +321,19 @@ public partial class GeekbenchAIWindow : Window
         TAvgFP32.Text  = fp32.Max()  > 0 ? $"{(int)fp32.Average():N0}"  : "—";
         TAvgFP16.Text  = fp16.Max()  > 0 ? $"{(int)fp16.Average():N0}"  : "—";
         TAvgQuant.Text = quant.Max() > 0 ? $"{(int)quant.Average():N0}" : "—";
+
+        HighlightBest(TFP32_1,  TFP32_2,  TFP32_3,
+            results.Count > 0 ? results[0].FullPrecision : 0,
+            results.Count > 1 ? results[1].FullPrecision : 0,
+            results.Count > 2 ? results[2].FullPrecision : 0);
+        HighlightBest(TFP16_1,  TFP16_2,  TFP16_3,
+            results.Count > 0 ? results[0].HalfPrecision : 0,
+            results.Count > 1 ? results[1].HalfPrecision : 0,
+            results.Count > 2 ? results[2].HalfPrecision : 0);
+        HighlightBest(TQuant_1, TQuant_2, TQuant_3,
+            results.Count > 0 ? results[0].Quantized : 0,
+            results.Count > 1 ? results[1].Quantized : 0,
+            results.Count > 2 ? results[2].Quantized : 0);
 
         ShowPanel(TrialResultsPanel);
         var avgFP32  = results.Select(r => r.FullPrecision).ToList();
@@ -386,6 +421,16 @@ public partial class GeekbenchAIWindow : Window
         ResultsPanel     .Visibility = Visibility.Collapsed;
         TrialResultsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility             = Visibility.Visible;
+        AppHelpers.FadeIn(panel);
+    }
+
+    private static void HighlightBest(TextBlock t1, TextBlock t2, TextBlock t3,
+                                      double v1, double v2, double v3)
+    {
+        var best = Math.Max(v1, Math.Max(v2, v3));
+        t1.FontWeight = v1 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t2.FontWeight = v2 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t3.FontWeight = v3 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
     }
 
     private void AnimateDots()

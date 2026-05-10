@@ -157,8 +157,10 @@ public partial class MainWindow : Window
     {
         var workArea = SystemParameters.WorkArea;
         Left = workArea.Right - ActualWidth - 16;
-        Top = workArea.Top + 16;
+        Top  = workArea.Top  + 16;
     }
+
+    public void ResetPosition() => PositionTopRight();
 
     // ── Battery focus mode ────────────────────────────────────────────────
 
@@ -383,6 +385,7 @@ public partial class MainWindow : Window
         UpdateDateTime();
         UpdateBattery(_lastPower);
         UpdateCpu();
+        UpdateTrayTooltip();
         UpdateRam();
         UpdateGpu();
         UpdateNpu();
@@ -477,6 +480,18 @@ public partial class MainWindow : Window
             CpuBar.Background = LoadBrush(pct, BrushBlue);
         }
         catch { CpuText.Text = "N/A"; }
+    }
+
+    private void UpdateTrayTooltip()
+    {
+        try
+        {
+            if (System.Windows.Application.Current is not App app) return;
+            var cpuPct  = int.TryParse(CpuText.Text.TrimEnd('%'), out var c) ? c : -1;
+            var battPct = _lastPower is { } p ? ClampBatteryPct(p) : -1;
+            app.UpdateTrayTooltip(cpuPct, battPct);
+        }
+        catch { }
     }
 
     private void UpdateRam()

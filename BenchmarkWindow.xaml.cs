@@ -15,6 +15,7 @@ public partial class BenchmarkWindow : Window
     private bool                      _lastGpu;
     private int                       _lastTrials = 1;
     private string?                    _lastResultUrl;
+    private bool                      _logScrollLocked;
 
     public BenchmarkWindow()
     {
@@ -134,6 +135,7 @@ public partial class BenchmarkWindow : Window
 
         _lastGpu    = gpu;
         _lastTrials = trials;
+        _logScrollLocked = false;
 
         ShowPanel(RunningPanel);
         RunPhaseText.Text       = trials > 1 ? "Trial 1 of 3" : "Starting…";
@@ -142,6 +144,12 @@ public partial class BenchmarkWindow : Window
         _dotTimer.Start();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
+
+        LogScroll.ScrollChanged += (_, e) =>
+        {
+            if (e.ExtentHeightChange == 0) // user scroll, not content change
+                _logScrollLocked = LogScroll.VerticalOffset < LogScroll.ScrollableHeight - 2;
+        };
 
         var results = new List<BenchmarkResult>();
 
@@ -168,7 +176,7 @@ public partial class BenchmarkWindow : Window
                         RunPhaseText.Text = line.Trim();
 
                     LogText.Text += line + "\n";
-                    LogScroll.ScrollToBottom();
+                    if (!_logScrollLocked) LogScroll.ScrollToBottom();
                 });
 
                 var result = await GeekbenchService.RunAsync(exePath, progress, gpu, _cts.Token);
@@ -240,6 +248,15 @@ public partial class BenchmarkWindow : Window
         TrialB2.Text = results.Count > 1 ? $"{results[1].MultiCore:N0}" : "—";
         TrialB3.Text = results.Count > 2 ? $"{results[2].MultiCore:N0}" : "—";
 
+        HighlightBest(TrialA1, TrialA2, TrialA3,
+            results.Count > 0 ? results[0].SingleCore : 0,
+            results.Count > 1 ? results[1].SingleCore : 0,
+            results.Count > 2 ? results[2].SingleCore : 0);
+        HighlightBest(TrialB1, TrialB2, TrialB3,
+            results.Count > 0 ? results[0].MultiCore : 0,
+            results.Count > 1 ? results[1].MultiCore : 0,
+            results.Count > 2 ? results[2].MultiCore : 0);
+
         var aAvg = results.Select(r => r.SingleCore).ToList();
         var bAvg = results.Select(r => r.MultiCore).ToList();
         TrialAvgA.Text = aAvg.Max() > 0 ? $"{(int)aAvg.Average():N0}" : "—";
@@ -254,9 +271,21 @@ public partial class BenchmarkWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        CancelBtn.Visibility          = Visibility.Collapsed;
+        CancelConfirmPanel.Visibility = Visibility.Visible;
+    }
+
+    private void CancelConfirm_Click(object sender, RoutedEventArgs e)
+    {
         _cts?.Cancel();
         _dotTimer.Stop();
         ShowPanel(ReadyPanel);
+    }
+
+    private void CancelDismiss_Click(object sender, RoutedEventArgs e)
+    {
+        CancelConfirmPanel.Visibility = Visibility.Collapsed;
+        CancelBtn.Visibility          = Visibility.Visible;
     }
 
     private void ViewResults_Click(object sender, RoutedEventArgs e)
@@ -267,13 +296,22 @@ public partial class BenchmarkWindow : Window
 
     private void ShowPanel(FrameworkElement panel)
     {
-        CheckingPanel    .Visibility = Visibility.Collapsed;
-        ReadyPanel       .Visibility = Visibility.Collapsed;
-        InstallingPanel  .Visibility = Visibility.Collapsed;
-        RunningPanel     .Visibility = Visibility.Collapsed;
-        ResultPanel      .Visibility = Visibility.Collapsed;
-        TrialResultPanel .Visibility = Visibility.Collapsed;
-        panel.Visibility             = Visibility.Visible;
+        CheckingPanel   .Visibility = Visibility.Collapsed;
+        ReadyPanel      .Visibility = Visibility.Collapsed;
+        InstallingPanel .Visibility = Visibility.Collapsed;
+        RunningPanel    .Visibility = Visibility.Collapsed;
+        ResultPanel     .Visibility = Visibility.Collapsed;
+        TrialResultPanel.Visibility = Visibility.Collapsed;
+        panel.Visibility = Visibility.Visible;
+        AppHelpers.FadeIn(panel);
+    }
+
+    private static void HighlightBest(System.Windows.Controls.TextBlock t1, System.Windows.Controls.TextBlock t2, System.Windows.Controls.TextBlock t3, double v1, double v2, double v3)
+    {
+        var best = Math.Max(v1, Math.Max(v2, v3));
+        t1.FontWeight = v1 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t2.FontWeight = v2 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t3.FontWeight = v3 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
     }
 
     private void AnimateDots()

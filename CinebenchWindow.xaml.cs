@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Threading;
 using WinForms = System.Windows.Forms;
@@ -217,6 +218,17 @@ public partial class CinebenchWindow : Window
         TrialAvgM.Text = mode == CinebenchMode.Single ? "—" :
             results.Select(r => r.MultiCore).Max() > 0 ? Fmt(results.Average(r => r.MultiCore)) : "—";
 
+        if (mode != CinebenchMode.Multi)
+            HighlightBest(TrialS1, TrialS2, TrialS3,
+                results.Count > 0 ? results[0].SingleCore : 0,
+                results.Count > 1 ? results[1].SingleCore : 0,
+                results.Count > 2 ? results[2].SingleCore : 0);
+        if (mode != CinebenchMode.Single)
+            HighlightBest(TrialM1, TrialM2, TrialM3,
+                results.Count > 0 ? results[0].MultiCore : 0,
+                results.Count > 1 ? results[1].MultiCore : 0,
+                results.Count > 2 ? results[2].MultiCore : 0);
+
         ShowPanel(TrialResultPanel);
         var avgS = results.Select(r => r.SingleCore).Average();
         var avgM = results.Select(r => r.MultiCore).Average();
@@ -229,9 +241,21 @@ public partial class CinebenchWindow : Window
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
+        CancelBtn.Visibility          = Visibility.Collapsed;
+        CancelConfirmPanel.Visibility = Visibility.Visible;
+    }
+
+    private void CancelConfirm_Click(object sender, RoutedEventArgs e)
+    {
         _cts?.Cancel();
         _dotTimer.Stop();
         ShowPanel(ReadyPanel);
+    }
+
+    private void CancelDismiss_Click(object sender, RoutedEventArgs e)
+    {
+        CancelConfirmPanel.Visibility = Visibility.Collapsed;
+        CancelBtn.Visibility          = Visibility.Visible;
     }
 
     private void ViewPrevious_Click(object sender, MouseButtonEventArgs e)
@@ -249,6 +273,16 @@ public partial class CinebenchWindow : Window
         ResultPanel     .Visibility = Visibility.Collapsed;
         TrialResultPanel.Visibility = Visibility.Collapsed;
         panel.Visibility            = Visibility.Visible;
+        AppHelpers.FadeIn(panel);
+    }
+
+    private static void HighlightBest(TextBlock t1, TextBlock t2, TextBlock t3,
+                                      double v1, double v2, double v3)
+    {
+        var best = Math.Max(v1, Math.Max(v2, v3));
+        t1.FontWeight = v1 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t2.FontWeight = v2 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
+        t3.FontWeight = v3 == best && best > 0 ? FontWeights.Bold : FontWeights.SemiBold;
     }
 
     private void AnimateDots()

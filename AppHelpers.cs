@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace SpecIQ;
@@ -57,6 +58,17 @@ internal static class AppHelpers
         var timer    = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         timer.Tick  += (_, _) => { btn.Content = original; timer.Stop(); };
         timer.Start();
+    }
+
+    /// <summary>
+    /// Fades <paramref name="element"/> in from 0→1 opacity over 150 ms.
+    /// Call after setting Visibility = Visible.
+    /// </summary>
+    public static void FadeIn(UIElement element)
+    {
+        element.Opacity = 0;
+        var anim = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(150));
+        element.BeginAnimation(UIElement.OpacityProperty, anim);
     }
 
     /// <summary>

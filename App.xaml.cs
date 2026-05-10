@@ -39,6 +39,10 @@ public partial class App : System.Windows.Application
         showItem.Click += (_, _) => ToggleOverlay();
         menu.Items.Add(showItem);
 
+        var resetPosItem = new WinForms.ToolStripMenuItem("Reset Overlay Position");
+        resetPosItem.Click += (_, _) => ResetOverlayPosition();
+        menu.Items.Add(resetPosItem);
+
         var benchItem = new WinForms.ToolStripMenuItem("Geekbench 6…");
         benchItem.Click += (_, _) => ShowBenchmark();
         menu.Items.Add(benchItem);
@@ -96,6 +100,19 @@ public partial class App : System.Windows.Application
             else
                 window.Show();
         }
+    }
+
+    private void ResetOverlayPosition()
+    {
+        if (MainWindow is MainWindow mw)
+            mw.ResetPosition();
+    }
+
+    internal void UpdateTrayTooltip(int cpuPct, int battPct)
+    {
+        if (_trayIcon == null) return;
+        var batt = battPct is >= 0 and <= 100 ? $"  🔋{battPct}%" : "";
+        _trayIcon.Text = $"SpecIQ  CPU {cpuPct}%{batt}";
     }
 
     private BenchmarkWindow? _benchmarkWindow;

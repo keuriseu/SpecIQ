@@ -24,33 +24,6 @@
             <Setter Property="FontWeight"  Value="SemiBold"/>
             <Setter Property="Foreground"  Value="White"/>
         </Style>
-        <Style x:Key="Btn" TargetType="Button">
-            <Setter Property="FontFamily"  Value="Segoe UI"/>
-            <Setter Property="FontSize"    Value="12"/>
-            <Setter Property="FontWeight"  Value="SemiBold"/>
-            <Setter Property="Foreground"  Value="White"/>
-            <Setter Property="Cursor"      Value="Hand"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding"     Value="16,9"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bg" Background="{TemplateBinding Background}"
-                                CornerRadius="8" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bg" Property="Opacity" Value="0.8"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Bg" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </Window.Resources>
 
     <Border Background="#EE1A1A2E" CornerRadius="14" Width="360">
@@ -69,23 +42,7 @@
                 <TextBlock x:Name="TitleVersionText" Grid.Column="0" Text="GEEKBENCH"
                            FontFamily="Segoe UI" FontSize="11" FontWeight="Bold"
                            Foreground="#80FFFFFF" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="✕" Click="Close_Click"
-                        Background="Transparent" Foreground="#60FFFFFF"
-                        FontSize="14" Padding="8,4" Cursor="Hand" BorderThickness="0">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="Bg" Background="Transparent" CornerRadius="6"
-                                    Padding="{TemplateBinding Padding}">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bg" Property="Background" Value="#20FFFFFF"/>
-                                </Trigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
+                <Button Grid.Column="1" Style="{StaticResource CloseBtn}" Click="Close_Click"/>
             </Grid>
 
             <Border Height="1" Background="#15FFFFFF" Margin="0,12,0,0"/>
@@ -186,9 +143,21 @@
                     </ScrollViewer>
                 </Border>
 
-                <Button Content="Cancel" Click="Cancel_Click"
-                        Background="#30FFFFFF" Style="{StaticResource Btn}"
-                        HorizontalAlignment="Center"/>
+                <StackPanel x:Name="CancelArea" HorizontalAlignment="Center">
+                    <Button x:Name="CancelBtn" Content="Cancel" Click="Cancel_Click"
+                            Background="#30FFFFFF" Style="{StaticResource Btn}"/>
+                    <StackPanel x:Name="CancelConfirmPanel" Visibility="Collapsed"
+                                Orientation="Horizontal" HorizontalAlignment="Center">
+                        <TextBlock Text="Cancel run?" Foreground="#80FFFFFF" FontSize="11"
+                                   VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <Button Content="Yes" Click="CancelConfirm_Click"
+                                Background="#DC2626" Style="{StaticResource Btn}"
+                                Padding="14,7" Margin="0,0,6,0"/>
+                        <Button Content="Keep running" Click="CancelDismiss_Click"
+                                Background="#30FFFFFF" Style="{StaticResource Btn}"
+                                Padding="14,7"/>
+                    </StackPanel>
+                </StackPanel>
             </StackPanel>
 
             <!-- ── Single result panel ── -->

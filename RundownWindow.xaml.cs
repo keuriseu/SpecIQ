@@ -464,6 +464,7 @@ public partial class RundownWindow : Window
         RunningPanel.Visibility = Visibility.Collapsed;
         ResultsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility        = Visibility.Visible;
+        AppHelpers.FadeIn(panel);
     }
 
     // ── Sleep prevention ──────────────────────────────────────────────────

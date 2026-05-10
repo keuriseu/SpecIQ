@@ -459,5 +459,6 @@ public partial class SpeedometerWindow : Window
         RunningPanel.Visibility = Visibility.Collapsed;
         ResultsPanel.Visibility = Visibility.Collapsed;
         panel.Visibility        = Visibility.Visible;
+        AppHelpers.FadeIn(panel);
     }
 }
