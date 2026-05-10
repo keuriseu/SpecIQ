@@ -43,6 +43,10 @@ public partial class App : System.Windows.Application
         resetPosItem.Click += (_, _) => ResetOverlayPosition();
         menu.Items.Add(resetPosItem);
 
+        var snapshotItem = new WinForms.ToolStripMenuItem("System Snapshot…");
+        snapshotItem.Click += (_, _) => ShowSnapshot();
+        menu.Items.Add(snapshotItem);
+
         var historyItem = new WinForms.ToolStripMenuItem("Benchmark History…");
         historyItem.Click += (_, _) => ShowHistory();
         menu.Items.Add(historyItem);
@@ -117,6 +121,19 @@ public partial class App : System.Windows.Application
         if (_trayIcon == null) return;
         var batt = battPct is >= 0 and <= 100 ? $"  🔋{battPct}%" : "";
         _trayIcon.Text = $"SpecIQ  CPU {cpuPct}%{batt}";
+    }
+
+    private SpecReportWindow? _snapshotWindow;
+
+    private void ShowSnapshot()
+    {
+        if (_snapshotWindow is { IsLoaded: true })
+        {
+            _snapshotWindow.Activate();
+            return;
+        }
+        _snapshotWindow = new SpecReportWindow();
+        _snapshotWindow.Show();
     }
 
     private HistoryWindow? _historyWindow;
