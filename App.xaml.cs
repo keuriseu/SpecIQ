@@ -43,6 +43,10 @@ public partial class App : System.Windows.Application
         resetPosItem.Click += (_, _) => ResetOverlayPosition();
         menu.Items.Add(resetPosItem);
 
+        var historyItem = new WinForms.ToolStripMenuItem("Benchmark History…");
+        historyItem.Click += (_, _) => ShowHistory();
+        menu.Items.Add(historyItem);
+
         var benchItem = new WinForms.ToolStripMenuItem("Geekbench 6…");
         benchItem.Click += (_, _) => ShowBenchmark();
         menu.Items.Add(benchItem);
@@ -113,6 +117,19 @@ public partial class App : System.Windows.Application
         if (_trayIcon == null) return;
         var batt = battPct is >= 0 and <= 100 ? $"  🔋{battPct}%" : "";
         _trayIcon.Text = $"SpecIQ  CPU {cpuPct}%{batt}";
+    }
+
+    private HistoryWindow? _historyWindow;
+
+    private void ShowHistory()
+    {
+        if (_historyWindow is { IsLoaded: true })
+        {
+            _historyWindow.Activate();
+            return;
+        }
+        _historyWindow = new HistoryWindow();
+        _historyWindow.Show();
     }
 
     private BenchmarkWindow? _benchmarkWindow;

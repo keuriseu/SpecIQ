@@ -201,6 +201,16 @@ public partial class CinebenchWindow : Window
         var saved = new CinebenchSavedResult { SingleCore = result.SingleCore, MultiCore = result.MultiCore };
         saved.Save();
         _previousResult = saved;
+
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.Cinebench,
+            Note   = mode == CinebenchMode.Single ? "Single Core"
+                   : mode == CinebenchMode.Multi  ? "Multi Core"
+                   : "Single + Multi",
+            ScoreA = result.SingleCore,
+            ScoreB = result.MultiCore,
+        });
     }
 
     private void ShowTrialResults(List<CinebenchResult> results, CinebenchMode mode)
@@ -235,6 +245,16 @@ public partial class CinebenchWindow : Window
         var saved = new CinebenchSavedResult { SingleCore = avgS, MultiCore = avgM };
         saved.Save();
         _previousResult = saved;
+
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.Cinebench,
+            Note   = mode == CinebenchMode.Single ? "Single Core ×3 avg"
+                   : mode == CinebenchMode.Multi  ? "Multi Core ×3 avg"
+                   : "Both ×3 avg",
+            ScoreA = avgS,
+            ScoreB = avgM,
+        });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────

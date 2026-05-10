@@ -55,6 +55,10 @@ public partial class MainWindow : Window
     private int _lastRamPct;
     private WinForms.PowerStatus? _lastPower;
 
+    // Thermal
+    private int  _lastTempC      = -1;
+    private bool _thermalPolling;
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct MEMORYSTATUSEX
     {
@@ -129,6 +133,7 @@ public partial class MainWindow : Window
         _energySaverOn = EnergyHelper.IsOn(); // best-effort initial state
         UpdateAll();
         _timer.Start();
+        StartThermalPolling();
 
         // Hook WndProc and register for WM_POWERBROADCAST / PBT_POWERSETTINGCHANGE
         var hwnd = new WindowInteropHelper(this).Handle;
@@ -470,6 +475,40 @@ public partial class MainWindow : Window
         }
     }
 
+    // ── Thermal ───────────────────────────────────────────────────────────
+
+    private void StartThermalPolling()
+    {
+        _thermalPolling = true;
+        _ = Task.Run(async () =>
+        {
+            while (_thermalPolling)
+            {
+                var temp = ThermalService.ReadCpuTempC();
+                await Dispatcher.InvokeAsync(() => { _lastTempC = temp; UpdateTemp(); });
+                await Task.Delay(5000);
+            }
+        });
+    }
+
+    private void UpdateTemp()
+    {
+        if (_lastTempC < 0)
+        {
+            TempText.Text = "N/A";
+            TempBar.Width = 0;
+            return;
+        }
+
+        TempText.Text = $"{_lastTempC}°C";
+        // Map 0–100 °C to bar width; clamp so > 100 still fills fully
+        var pct = Math.Clamp(_lastTempC, 0, 100);
+        TempBar.Width      = TrackWidth(TempBar) * pct / 100.0;
+        TempBar.Background = _lastTempC > 85 ? BrushRed
+                           : _lastTempC > 70 ? BrushYellow
+                           : BrushGreen;
+    }
+
     private void UpdateCpu()
     {
         try
@@ -730,6 +769,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _thermalPolling = false;
         _timer.Stop();
         if (_powerNotifHandle != IntPtr.Zero) UnregisterPowerSettingNotification(_powerNotifHandle);
         _cpuCounter.Dispose();

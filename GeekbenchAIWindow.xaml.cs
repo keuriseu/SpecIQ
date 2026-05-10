@@ -295,6 +295,15 @@ public partial class GeekbenchAIWindow : Window
         };
         saved.Save();
         _previousResult = saved;
+
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.GeekbenchAI,
+            Note   = label,
+            ScoreA = result.FullPrecision,
+            ScoreB = result.HalfPrecision,
+            ScoreC = result.Quantized,
+        });
     }
 
     private void ShowTrialResults(List<AIBenchmarkResult> results, string label)
@@ -348,6 +357,15 @@ public partial class GeekbenchAIWindow : Window
         };
         saved.Save();
         _previousResult = saved;
+
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.GeekbenchAI,
+            Note   = label + " ×3 avg",
+            ScoreA = avgFP32.Max()  > 0 ? avgFP32.Average()  : 0,
+            ScoreB = avgFP16.Max()  > 0 ? avgFP16.Average()  : 0,
+            ScoreC = avgQuant.Max() > 0 ? avgQuant.Average() : 0,
+        });
     }
 
     // ── Export ────────────────────────────────────────────────────────────

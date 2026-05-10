@@ -227,6 +227,14 @@ public partial class BenchmarkWindow : Window
         _lastResultUrl = result.ResultUrl;
         ViewResultsBtn.Visibility = result.ResultUrl != null ? Visibility.Visible : Visibility.Collapsed;
 
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.Geekbench6,
+            Note   = gpu ? "GPU" : "CPU",
+            ScoreA = result.SingleCore,
+            ScoreB = result.MultiCore,
+        });
+
         if (System.Windows.Application.Current.MainWindow is MainWindow main)
             main.ShowBenchmarkScore(result);
     }
@@ -265,6 +273,14 @@ public partial class BenchmarkWindow : Window
         ShowPanel(TrialResultPanel);
         _lastResultUrl = results.LastOrDefault(r => r.ResultUrl != null)?.ResultUrl;
         ViewTrialResultsBtn.Visibility = _lastResultUrl != null ? Visibility.Visible : Visibility.Collapsed;
+
+        BenchmarkHistory.Append(new HistoryEntry
+        {
+            Tool   = HistoryTool.Geekbench6,
+            Note   = gpu ? "GPU ×3 avg" : "CPU ×3 avg",
+            ScoreA = results.Select(r => r.SingleCore).Average(),
+            ScoreB = results.Select(r => r.MultiCore).Average(),
+        });
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
