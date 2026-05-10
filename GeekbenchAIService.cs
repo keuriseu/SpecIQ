@@ -43,7 +43,7 @@ public static class GeekbenchAIService
             });
             var line = proc?.StandardOutput.ReadLine()?.Trim();
             // Only trust paths inside standard install locations to defend against PATH poisoning.
-            if (line != null && File.Exists(line) && IsAllowedExePath(line))
+            if (line != null && File.Exists(line) && AppHelpers.IsAllowedExePath(line))
             {
                 SpecIQSettings.BanffPath = line;
                 return line;
@@ -52,16 +52,6 @@ public static class GeekbenchAIService
         catch { }
 
         return null;
-    }
-
-    private static bool IsAllowedExePath(string path)
-    {
-        var programFiles    = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        var localAppData    = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return path.StartsWith(programFiles,    StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith(programFilesX86, StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith(localAppData,    StringComparison.OrdinalIgnoreCase);
     }
 
     public static string? GetInstalledVersion(string exePath)
@@ -281,16 +271,13 @@ public class AIBenchmarkSavedResult
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "SpecIQ", "geekbench-ai.json");
 
-    private static readonly System.Text.Json.JsonSerializerOptions JsonOpts =
-        new() { WriteIndented = true };
-
     public void Save()
     {
         try
         {
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(FilePath)!);
             System.IO.File.WriteAllText(FilePath,
-                System.Text.Json.JsonSerializer.Serialize(this, JsonOpts));
+                System.Text.Json.JsonSerializer.Serialize(this, AppHelpers.JsonOpts));
         }
         catch { }
     }
@@ -301,7 +288,7 @@ public class AIBenchmarkSavedResult
         {
             return System.IO.File.Exists(FilePath)
                 ? System.Text.Json.JsonSerializer.Deserialize<AIBenchmarkSavedResult>(
-                    System.IO.File.ReadAllText(FilePath), JsonOpts)
+                    System.IO.File.ReadAllText(FilePath), AppHelpers.JsonOpts)
                 : null;
         }
         catch { return null; }

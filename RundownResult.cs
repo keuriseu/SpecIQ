@@ -29,8 +29,6 @@ public class RundownResult
     [JsonIgnore] public string   LabelA         => IsGpu ? "OpenCL" : IsStress ? "CPU Single" : "Single-Core";
     [JsonIgnore] public string   LabelB         => IsGpu ? "Vulkan"  : IsStress ? "CPU Multi"  : "Multi-Core";
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
-
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "SpecIQ", "rundown.json");
@@ -38,7 +36,7 @@ public class RundownResult
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOpts));
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, AppHelpers.JsonOpts));
     }
 
     public static RundownResult? Load()
@@ -46,7 +44,7 @@ public class RundownResult
         try
         {
             return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<RundownResult>(File.ReadAllText(FilePath), JsonOpts)
+                ? JsonSerializer.Deserialize<RundownResult>(File.ReadAllText(FilePath), AppHelpers.JsonOpts)
                 : null;
         }
         catch { return null; }
@@ -58,7 +56,7 @@ public class RundownResult
         var sb  = new System.Text.StringBuilder();
         sb.AppendLine($"SpecIQ Battery Rundown — {MachineName}");
         sb.AppendLine($"{ver}{BenchmarkType}  ·  Started: {DateTime.Parse(StartedAt):g}  ·  Start battery: {(StartBatteryPct >= 0 ? StartBatteryPct + "%" : "?")}");
-        sb.AppendLine($"Iterations: {IterationCount}  Duration: {FormatDuration(TotalDuration)}");
+        sb.AppendLine($"Iterations: {IterationCount}  Duration: {AppHelpers.FormatDuration(TotalDuration)}");
         sb.AppendLine();
         if (IsStress)
         {
@@ -68,14 +66,14 @@ public class RundownResult
                 sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  {"GPU Vulkan",-12}  Battery  Elapsed");
                 sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
                 foreach (var e in Entries)
-                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.GpuVulkanScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.GpuVulkanScore,12:N0}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
             }
             else
             {
                 sb.AppendLine($"Iter  {"CPU Single",-12}  {"CPU Multi",-12}  {"GPU OpenCL",-12}  Battery  Elapsed");
                 sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
                 foreach (var e in Entries)
-                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+                    sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.GpuOpenClScore,12:N0}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
             }
         }
         else
@@ -83,7 +81,7 @@ public class RundownResult
             sb.AppendLine($"Iter  {LabelA,-12}  {LabelB,-12}  Battery  Elapsed");
             sb.AppendLine($"────  {"────────────",-12}  {"────────────",-12}  ───────  ───────");
             foreach (var e in Entries)
-                sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+                sb.AppendLine($"{e.Iteration,4}  {e.SingleScore,12:N0}  {e.MultiScore,12:N0}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
         }
         if (Entries.Count > 1)
         {
@@ -113,6 +111,4 @@ public class RundownResult
         sb.AppendLine($"{label}: First {first:N0}  Last {last:N0}  Avg {avg:N0}  Drop {drop:F1}%");
     }
 
-    private static string FormatDuration(TimeSpan t) =>
-        t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes:D2}m" : $"{t.Minutes}m {t.Seconds:D2}s";
 }

@@ -279,8 +279,6 @@ public partial class BenchmarkWindow : Window
     private void AnimateDots()
     {
         _dotFrame = (_dotFrame + 1) % 3;
-        Dot1.Opacity = _dotFrame == 0 ? 1.0 : _dotFrame == 2 ? 0.25 : 0.5;
-        Dot2.Opacity = _dotFrame == 1 ? 1.0 : _dotFrame == 0 ? 0.25 : 0.5;
-        Dot3.Opacity = _dotFrame == 2 ? 1.0 : _dotFrame == 1 ? 0.25 : 0.5;
+        AppHelpers.SetDotOpacities(_dotFrame, Dot1, Dot2, Dot3);
     }
 }

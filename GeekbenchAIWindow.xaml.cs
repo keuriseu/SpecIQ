@@ -321,14 +321,14 @@ public partial class GeekbenchAIWindow : Window
     {
         if (_lastSingleResult == null || _lastEntry == null) return;
         CopyToClipboard(BuildSingleExport(_lastSingleResult, GeekbenchAIService.EntryLabel(_lastEntry)));
-        FlashButton(ExportBtn);
+        AppHelpers.FlashButton(ExportBtn);
     }
 
     private void TrialExport_Click(object sender, RoutedEventArgs e)
     {
         if (_lastTrialResults == null || _lastEntry == null) return;
         CopyToClipboard(BuildTrialExport(_lastTrialResults, GeekbenchAIService.EntryLabel(_lastEntry)));
-        FlashButton(TrialExportBtn);
+        AppHelpers.FlashButton(TrialExportBtn);
     }
 
     private string BuildSingleExport(AIBenchmarkResult r, string label)
@@ -377,15 +377,6 @@ public partial class GeekbenchAIWindow : Window
         try { Clipboard.SetText(text); } catch { }
     }
 
-    private void FlashButton(System.Windows.Controls.Button btn)
-    {
-        var original = btn.Content;
-        btn.Content = "Copied!";
-        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        t.Tick += (_, _) => { btn.Content = original; t.Stop(); };
-        t.Start();
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private void ShowPanel(FrameworkElement panel)
@@ -400,8 +391,6 @@ public partial class GeekbenchAIWindow : Window
     private void AnimateDots()
     {
         _dotFrame = (_dotFrame + 1) % 3;
-        Dot1.Opacity = _dotFrame == 0 ? 1.0 : _dotFrame == 2 ? 0.25 : 0.5;
-        Dot2.Opacity = _dotFrame == 1 ? 1.0 : _dotFrame == 0 ? 0.25 : 0.5;
-        Dot3.Opacity = _dotFrame == 2 ? 1.0 : _dotFrame == 1 ? 0.25 : 0.5;
+        AppHelpers.SetDotOpacities(_dotFrame, Dot1, Dot2, Dot3);
     }
 }

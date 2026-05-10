@@ -21,8 +21,6 @@ public class SpeedometerResult
     [JsonIgnore] public TimeSpan TotalDuration  => Entries.Count > 0 ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) : TimeSpan.Zero;
     [JsonIgnore] public int      IterationCount => Entries.Count;
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
-
     public static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "SpecIQ", "speedometer.json");
@@ -30,7 +28,7 @@ public class SpeedometerResult
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, JsonOpts));
+        File.WriteAllText(FilePath, JsonSerializer.Serialize(this, AppHelpers.JsonOpts));
     }
 
     public static SpeedometerResult? Load()
@@ -38,7 +36,7 @@ public class SpeedometerResult
         try
         {
             return File.Exists(FilePath)
-                ? JsonSerializer.Deserialize<SpeedometerResult>(File.ReadAllText(FilePath), JsonOpts)
+                ? JsonSerializer.Deserialize<SpeedometerResult>(File.ReadAllText(FilePath), AppHelpers.JsonOpts)
                 : null;
         }
         catch { return null; }
@@ -49,12 +47,12 @@ public class SpeedometerResult
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"SpecIQ Speedometer 3.1 — {MachineName}");
         sb.AppendLine($"Browser: {Browser}  ·  Started: {DateTime.Parse(StartedAt):g}  ·  Start battery: {(StartBatteryPct >= 0 ? StartBatteryPct + "%" : "?")}");
-        sb.AppendLine($"Iterations: {IterationCount}  Duration: {FormatDuration(TotalDuration)}");
+        sb.AppendLine($"Iterations: {IterationCount}  Duration: {AppHelpers.FormatDuration(TotalDuration)}");
         sb.AppendLine();
         sb.AppendLine($"Iter  {"Score",-10}  Battery  Elapsed");
         sb.AppendLine($"────  {"──────────",-10}  ───────  ───────");
         foreach (var e in Entries)
-            sb.AppendLine($"{e.Iteration,4}  {e.Score,10:F2}  {e.BatteryPct,6}%  {FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+            sb.AppendLine($"{e.Iteration,4}  {e.Score,10:F2}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
         if (Entries.Count > 1)
         {
             var first = Entries[0].Score;
@@ -66,6 +64,4 @@ public class SpeedometerResult
         return sb.ToString();
     }
 
-    private static string FormatDuration(TimeSpan t) =>
-        t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes:D2}m" : $"{t.Minutes}m {t.Seconds:D2}s";
 }

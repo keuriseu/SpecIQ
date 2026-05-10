@@ -35,7 +35,7 @@ public static class CinebenchService
                 CreateNoWindow         = true,
             });
             var line = proc?.StandardOutput.ReadLine()?.Trim();
-            if (line != null && File.Exists(line) && IsAllowedExePath(line)) return line;
+            if (line != null && File.Exists(line) && AppHelpers.IsAllowedExePath(line)) return line;
         }
         catch { }
 
@@ -111,16 +111,6 @@ public static class CinebenchService
         return ParseResultFile(newFile);
     }
 
-    private static bool IsAllowedExePath(string path)
-    {
-        var pf     = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
-        var pfx86  = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
-        var local  = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return path.StartsWith(pf,    StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith(pfx86, StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith(local, StringComparison.OrdinalIgnoreCase);
-    }
-
     private static CinebenchResult ParseResultFile(string path)
     {
         var entries = File.ReadAllLines(path)
@@ -150,15 +140,12 @@ public class CinebenchSavedResult
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "SpecIQ", "cinebench.json");
 
-    private static readonly System.Text.Json.JsonSerializerOptions JsonOpts =
-        new() { WriteIndented = true };
-
     public void Save()
     {
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, System.Text.Json.JsonSerializer.Serialize(this, JsonOpts));
+            File.WriteAllText(FilePath, System.Text.Json.JsonSerializer.Serialize(this, AppHelpers.JsonOpts));
         }
         catch { }
     }
@@ -169,7 +156,7 @@ public class CinebenchSavedResult
         {
             return File.Exists(FilePath)
                 ? System.Text.Json.JsonSerializer.Deserialize<CinebenchSavedResult>(
-                    File.ReadAllText(FilePath), JsonOpts)
+                    File.ReadAllText(FilePath), AppHelpers.JsonOpts)
                 : null;
         }
         catch { return null; }

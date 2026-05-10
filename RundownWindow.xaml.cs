@@ -260,12 +260,7 @@ public partial class RundownWindow : Window
         var text = (_result ?? _previousResult)!.ExportText();
         Clipboard.SetText(text);
 
-        // Brief visual feedback
-        var btn = (Button)sender;
-        btn.Content = "Copied!";
-        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        t.Tick += (_, _) => { btn.Content = "Export"; t.Stop(); };
-        t.Start();
+        AppHelpers.FlashButton((Button)sender);
     }
 
     // ── Chart ─────────────────────────────────────────────────────────────

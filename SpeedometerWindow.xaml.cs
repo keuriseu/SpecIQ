@@ -328,11 +328,7 @@ public partial class SpeedometerWindow : Window
     {
         if (_result == null && _previousResult == null) return;
         Clipboard.SetText((_result ?? _previousResult)!.ExportText());
-        var btn = (Button)sender;
-        btn.Content = "Copied!";
-        var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
-        t.Tick += (_, _) => { btn.Content = "Export"; t.Stop(); };
-        t.Start();
+        AppHelpers.FlashButton((Button)sender);
     }
 
     // ── Chart ─────────────────────────────────────────────────────────────
