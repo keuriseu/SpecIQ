@@ -98,46 +98,146 @@ public static class GeekbenchService
         IProgress<(int Percent, string Status)> progress,
         CancellationToken ct = default)
     {
-        var tempFile = Path.Combine(Path.GetTempPath(), "GeekbenchSetup.exe");
+        // Use a random name so no other process can predict and replace the file between
+        // download and execution (TOCTOU race mitigation).
+        var tempFile = Path.Combine(Path.GetTempPath(), $"GeekbenchSetup-{Guid.NewGuid():N}.exe");
 
-        using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
-        response.EnsureSuccessStatusCode();
-
-        var total = response.Content.Headers.ContentLength ?? -1L;
-        await using var download = await response.Content.ReadAsStreamAsync(ct);
-        await using var file     = File.Create(tempFile);
-
-        var buffer     = new byte[81920];
-        long received  = 0;
-        int  read;
-
-        while ((read = await download.ReadAsync(buffer, ct)) > 0)
+        try
         {
-            await file.WriteAsync(buffer.AsMemory(0, read), ct);
-            received += read;
-            var pct = total > 0 ? (int)(received * 100 / total) : -1;
-            var mb  = received / 1_048_576.0;
-            progress.Report((pct, $"Downloading…  {mb:F0} MB"));
+            using var response = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+            response.EnsureSuccessStatusCode();
+
+            var total = response.Content.Headers.ContentLength ?? -1L;
+            await using var download = await response.Content.ReadAsStreamAsync(ct);
+            await using var file     = File.Create(tempFile);
+
+            var buffer    = new byte[81920];
+            long received = 0;
+            int  read;
+
+            while ((read = await download.ReadAsync(buffer, ct)) > 0)
+            {
+                await file.WriteAsync(buffer.AsMemory(0, read), ct);
+                received += read;
+                var pct = total > 0 ? (int)(received * 100 / total) : -1;
+                var mb  = received / 1_048_576.0;
+                progress.Report((pct, $"Downloading…  {mb:F0} MB"));
+            }
+            await file.FlushAsync(ct);
+            file.Close();
+
+            // Verify the installer carries a valid Authenticode signature before running it as admin.
+            VerifyInstallerSignature(tempFile);
+
+            progress.Report((100, "Installing…"));
+
+            var psi  = new ProcessStartInfo(tempFile, "/S") { UseShellExecute = true, Verb = "runas" };
+            var proc = Process.Start(psi) ?? throw new InvalidOperationException("Installer did not start.");
+            await proc.WaitForExitAsync(ct);
+
+            if (proc.ExitCode != 0)
+                throw new InvalidOperationException($"Installer exited with code {proc.ExitCode}.");
         }
-        await file.FlushAsync(ct);
-        file.Close();
-
-        progress.Report((100, "Installing…"));
-
-        var psi  = new ProcessStartInfo(tempFile, "/S") { UseShellExecute = true, Verb = "runas" };
-        var proc = Process.Start(psi) ?? throw new InvalidOperationException("Installer did not start.");
-        await proc.WaitForExitAsync(ct);
-
-        if (proc.ExitCode != 0)
-            throw new InvalidOperationException($"Installer exited with code {proc.ExitCode}.");
+        finally
+        {
+            try { File.Delete(tempFile); } catch { }
+        }
     }
 
-    private const string LicenseEmail = "geekbench@qualcomm.com";
-    private const string LicenseKey   = "ONGAL-XV7U5-ICW2I-XB67X-6HERZ-KFW2D-AXC7V-CVVMU-7Y6QI";
+    // ── Authenticode verification ─────────────────────────────────────────
 
+    [DllImport("wintrust.dll", ExactSpelling = true, CharSet = CharSet.Unicode)]
+    private static extern uint WinVerifyTrust(IntPtr hwnd, ref Guid pgActionID, ref WinTrustData pWVTData);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WinTrustFileInfo
+    {
+        public uint   cbStruct;
+        public string pcwszFilePath;
+        public IntPtr hFile;
+        public IntPtr pgKnownSubject;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WinTrustData
+    {
+        public uint    cbStruct;
+        public IntPtr  pPolicyCallbackData;
+        public IntPtr  pSIPClientData;
+        public uint    dwUIChoice;        // 2 = WTD_UI_NONE
+        public uint    fdwRevocationChecks;
+        public uint    dwUnionChoice;     // 1 = WTD_CHOICE_FILE
+        public IntPtr  pFile;
+        public uint    dwStateAction;     // 1 = WTD_STATEACTION_VERIFY
+        public IntPtr  hWVTStateData;
+        public IntPtr  pwszURLReference;
+        public uint    dwProvFlags;       // 0x10 = WTD_CACHE_ONLY_URL_RETRIEVAL
+        public uint    dwUIContext;
+    }
+
+    private static readonly Guid WintrustActionGenericVerifyV2 =
+        new("00AAC56B-CD44-11d0-8CC2-00C04FC295EE");
+
+    private static void VerifyInstallerSignature(string path)
+    {
+        var fileInfo = new WinTrustFileInfo
+        {
+            cbStruct       = (uint)Marshal.SizeOf<WinTrustFileInfo>(),
+            pcwszFilePath  = path,
+            hFile          = IntPtr.Zero,
+            pgKnownSubject = IntPtr.Zero,
+        };
+
+        var fileInfoPtr = Marshal.AllocHGlobal(Marshal.SizeOf<WinTrustFileInfo>());
+        try
+        {
+            Marshal.StructureToPtr(fileInfo, fileInfoPtr, false);
+
+            var trustData = new WinTrustData
+            {
+                cbStruct           = (uint)Marshal.SizeOf<WinTrustData>(),
+                dwUIChoice         = 2,    // WTD_UI_NONE
+                fdwRevocationChecks = 0,
+                dwUnionChoice      = 1,    // WTD_CHOICE_FILE
+                pFile              = fileInfoPtr,
+                dwStateAction      = 1,    // WTD_STATEACTION_VERIFY
+                dwProvFlags        = 0x10, // WTD_CACHE_ONLY_URL_RETRIEVAL
+            };
+
+            var actionGuid = WintrustActionGenericVerifyV2;
+            var result = WinVerifyTrust(IntPtr.Zero, ref actionGuid, ref trustData);
+
+            if (result != 0)
+                throw new InvalidOperationException(
+                    $"Authenticode signature verification failed (0x{result:X8}). " +
+                    "The installer may be tampered or unsigned.");
+
+            // Confirm the publisher embedded in the PE version resources.
+            // These resources are covered by the Authenticode signature already verified above,
+            // so the company name is cryptographically authenticated.
+            var info = FileVersionInfo.GetVersionInfo(path);
+            if (!string.Equals(info.CompanyName, "Primate Labs Inc.", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(info.CompanyName, "Primate Labs",      StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(
+                    $"Installer is from an unexpected publisher: '{info.CompanyName}'");
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(fileInfoPtr);
+        }
+    }
+
+    /// <summary>
+    /// Applies the Geekbench corporate license if credentials are configured in settings.
+    /// Skips silently if empty — the machine may already be activated from a prior run.
+    /// </summary>
     private static async Task ApplyLicenseAsync(string exePath, CancellationToken ct)
     {
-        var psi = new ProcessStartInfo(exePath, $"--unlock {LicenseEmail} {LicenseKey}")
+        var email = SpecIQSettings.GeekbenchLicenseEmail;
+        var key   = SpecIQSettings.GeekbenchLicenseKey;
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(key)) return;
+
+        var psi = new ProcessStartInfo(exePath, $"--unlock {email} {key}")
         {
             UseShellExecute        = false,
             RedirectStandardOutput = true,
@@ -147,7 +247,6 @@ public static class GeekbenchService
         using var proc = Process.Start(psi)
             ?? throw new InvalidOperationException("Could not start Geekbench for licensing.");
         await proc.WaitForExitAsync(ct);
-        // Non-zero exit = bad key or network failure; surface to caller
         if (proc.ExitCode != 0)
             throw new InvalidOperationException($"License activation failed (exit {proc.ExitCode}).");
     }

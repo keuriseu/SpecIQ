@@ -31,6 +31,23 @@ public static class SpecIQSettings
         set => Set("BanffPath", value);
     }
 
+    /// <summary>
+    /// Corporate license credentials for Geekbench 6.
+    /// Stored in the per-user settings file, never in source code.
+    /// Leave empty to skip --unlock (machine may already be activated).
+    /// </summary>
+    public static string? GeekbenchLicenseEmail
+    {
+        get => Get("GeekbenchLicenseEmail");
+        set => Set("GeekbenchLicenseEmail", value);
+    }
+
+    public static string? GeekbenchLicenseKey
+    {
+        get => Get("GeekbenchLicenseKey");
+        set => Set("GeekbenchLicenseKey", value);
+    }
+
     private static string? Get(string key) =>
         _data.TryGetValue(key, out var v) ? v : null;
 

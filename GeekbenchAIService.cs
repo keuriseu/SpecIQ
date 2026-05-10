@@ -42,11 +42,26 @@ public static class GeekbenchAIService
                 CreateNoWindow         = true,
             });
             var line = proc?.StandardOutput.ReadLine()?.Trim();
-            if (line != null && File.Exists(line)) { SpecIQSettings.BanffPath = line; return line; }
+            // Only trust paths inside standard install locations to defend against PATH poisoning.
+            if (line != null && File.Exists(line) && IsAllowedExePath(line))
+            {
+                SpecIQSettings.BanffPath = line;
+                return line;
+            }
         }
         catch { }
 
         return null;
+    }
+
+    private static bool IsAllowedExePath(string path)
+    {
+        var programFiles    = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var programFilesX86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        var localAppData    = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return path.StartsWith(programFiles,    StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(programFilesX86, StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(localAppData,    StringComparison.OrdinalIgnoreCase);
     }
 
     public static string? GetInstalledVersion(string exePath)
