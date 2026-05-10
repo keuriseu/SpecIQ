@@ -158,16 +158,29 @@
         <!-- Full overlay -->
         <StackPanel x:Name="ContentPanel">
 
-            <!-- DateTime -->
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                <TextBlock x:Name="TimeText" Text="12:00"
-                           FontSize="20" FontWeight="Bold" FontFamily="Segoe UI"
-                           Foreground="White" VerticalAlignment="Bottom"/>
-                <TextBlock x:Name="DateText" Text="Mon, Jan 1"
-                           FontSize="10" FontFamily="Segoe UI"
-                           Foreground="#80FFFFFF" VerticalAlignment="Bottom"
-                           Margin="8,0,0,2"/>
-            </StackPanel>
+            <!-- DateTime + launcher toggle -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock x:Name="TimeText" Text="12:00"
+                               FontSize="20" FontWeight="Bold" FontFamily="Segoe UI"
+                               Foreground="White" VerticalAlignment="Bottom"/>
+                    <TextBlock x:Name="DateText" Text="Mon, Jan 1"
+                               FontSize="10" FontFamily="Segoe UI"
+                               Foreground="#80FFFFFF" VerticalAlignment="Bottom"
+                               Margin="8,0,0,2"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1" x:Name="LauncherToggle"
+                           Text="⊞"
+                           FontFamily="Segoe UI Symbol" FontSize="15"
+                           Foreground="#40FFFFFF"
+                           VerticalAlignment="Bottom" Margin="8,0,0,2"
+                           Cursor="Hand"
+                           MouseLeftButtonDown="LauncherToggle_Click"/>
+            </Grid>
 
             <Border Style="{StaticResource SeparatorStyle}"/>
 
@@ -376,6 +389,88 @@
                     <TextBlock x:Name="NetworkDownText" Text="-- KB/s" Style="{StaticResource ValueStyle}" FontSize="10"/>
                 </StackPanel>
             </Grid>
+
+        </StackPanel>
+
+        <!-- ── Launcher panel ── -->
+        <StackPanel x:Name="LauncherPanel" Visibility="Collapsed">
+
+            <!-- DateTime header (mirrors ContentPanel's header) -->
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <TextBlock x:Name="LaunchTimeText" Text="12:00"
+                               FontSize="20" FontWeight="Bold" FontFamily="Segoe UI"
+                               Foreground="White" VerticalAlignment="Bottom"/>
+                    <TextBlock x:Name="LaunchDateText" Text="Mon, Jan 1"
+                               FontSize="10" FontFamily="Segoe UI"
+                               Foreground="#80FFFFFF" VerticalAlignment="Bottom"
+                               Margin="8,0,0,2"/>
+                </StackPanel>
+                <TextBlock Grid.Column="1"
+                           Text="⊞"
+                           FontFamily="Segoe UI Symbol" FontSize="15"
+                           Foreground="White"
+                           VerticalAlignment="Bottom" Margin="8,0,0,2"
+                           Cursor="Hand"
+                           MouseLeftButtonDown="LauncherToggle_Click"/>
+            </Grid>
+
+            <Border Height="1" Background="#20FFFFFF" Margin="0,0,0,10"/>
+
+            <!-- BENCHMARKS -->
+            <TextBlock Text="BENCHMARKS" FontFamily="Segoe UI" FontSize="8"
+                       FontWeight="Bold" Foreground="#50FFFFFF" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition/><RowDefinition Height="5"/><RowDefinition/>
+                </Grid.RowDefinitions>
+                <Button Grid.Row="0" Grid.Column="0" Content="Geekbench 6"
+                        Click="Launch_GB6" Background="#3B82F6"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Row="0" Grid.Column="2" Content="Geekbench AI"
+                        Click="Launch_GBAI" Background="#8B5CF6"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Row="2" Grid.Column="0" Content="Cinebench"
+                        Click="Launch_CB" Background="#F59E0B"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Row="2" Grid.Column="2" Content="Speedometer"
+                        Click="Launch_SP" Background="#059669"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+            </Grid>
+
+            <Border Height="1" Background="#10FFFFFF" Margin="0,10,0,10"/>
+
+            <!-- REPORTS -->
+            <TextBlock Text="REPORTS" FontFamily="Segoe UI" FontSize="8"
+                       FontWeight="Bold" Foreground="#50FFFFFF" Margin="0,0,0,6"/>
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="History"
+                        Click="Launch_History" Background="#30FFFFFF"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Column="2" Content="Snapshot"
+                        Click="Launch_Snapshot" Background="#30FFFFFF"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+            </Grid>
+
+            <Border Height="1" Background="#10FFFFFF" Margin="0,10,0,10"/>
+
+            <!-- OVERLAY -->
+            <TextBlock Text="OVERLAY" FontFamily="Segoe UI" FontSize="8"
+                       FontWeight="Bold" Foreground="#50FFFFFF" Margin="0,0,0,6"/>
+            <Button Content="Reset Position"
+                    Click="Launch_ResetPos" Background="#30FFFFFF"
+                    Style="{StaticResource Btn}" Padding="8,6" FontSize="11"
+                    HorizontalAlignment="Stretch"/>
 
         </StackPanel>
 

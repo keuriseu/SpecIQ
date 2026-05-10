@@ -125,7 +125,7 @@ public partial class App : System.Windows.Application
 
     private SpecReportWindow? _snapshotWindow;
 
-    private void ShowSnapshot()
+    internal void ShowSnapshot()
     {
         if (_snapshotWindow is { IsLoaded: true })
         {
@@ -138,7 +138,7 @@ public partial class App : System.Windows.Application
 
     private HistoryWindow? _historyWindow;
 
-    private void ShowHistory()
+    internal void ShowHistory()
     {
         if (_historyWindow is { IsLoaded: true })
         {
@@ -151,7 +151,7 @@ public partial class App : System.Windows.Application
 
     private BenchmarkWindow? _benchmarkWindow;
 
-    private void ShowBenchmark()
+    internal void ShowBenchmark()
     {
         if (_benchmarkWindow is { IsLoaded: true })
         {
@@ -177,7 +177,7 @@ public partial class App : System.Windows.Application
 
     private SpeedometerWindow? _speedometerWindow;
 
-    private void ShowSpeedometer()
+    internal void ShowSpeedometer()
     {
         if (_speedometerWindow is { IsLoaded: true })
         {
@@ -190,7 +190,7 @@ public partial class App : System.Windows.Application
 
     private GeekbenchAIWindow? _geekbenchAIWindow;
 
-    private void ShowGeekbenchAI()
+    internal void ShowGeekbenchAI()
     {
         if (_geekbenchAIWindow is { IsLoaded: true })
         {
@@ -203,7 +203,7 @@ public partial class App : System.Windows.Application
 
     private CinebenchWindow? _cinebenchWindow;
 
-    private void ShowCinebench()
+    internal void ShowCinebench()
     {
         if (_cinebenchWindow is { IsLoaded: true })
         {

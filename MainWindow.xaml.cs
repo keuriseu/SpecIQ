@@ -55,6 +55,9 @@ public partial class MainWindow : Window
     private int _lastRamPct;
     private WinForms.PowerStatus? _lastPower;
 
+    // Launcher
+    private bool _launcherOpen;
+
     // Thermal
     private int  _lastTempC      = -1;
     private bool _thermalPolling;
@@ -166,6 +169,46 @@ public partial class MainWindow : Window
     }
 
     public void ResetPosition() => PositionTopRight();
+
+    // ── Launcher ──────────────────────────────────────────────────────────
+
+    private void LauncherToggle_Click(object sender, MouseButtonEventArgs e)
+    {
+        e.Handled = true;
+        if (_launcherOpen) HideLauncher();
+        else               ShowLauncher();
+    }
+
+    private void ShowLauncher()
+    {
+        _launcherOpen = true;
+        ContentPanel.Visibility  = Visibility.Collapsed;
+        LauncherPanel.Visibility = Visibility.Visible;
+        AppHelpers.FadeIn(LauncherPanel);
+        LauncherToggle.Foreground = BrushWhite;
+        // Mirror clock into the launcher header so it stays live
+        LaunchTimeText.Text = TimeText.Text;
+        LaunchDateText.Text = DateText.Text;
+    }
+
+    private void HideLauncher()
+    {
+        if (!_launcherOpen) return;
+        _launcherOpen = false;
+        LauncherPanel.Visibility = Visibility.Collapsed;
+        ContentPanel.Visibility  = Visibility.Visible;
+        LauncherToggle.Foreground = new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+    }
+
+    private void Launch_GB6(object sender, RoutedEventArgs e)      { HideLauncher(); App().ShowBenchmark();   }
+    private void Launch_GBAI(object sender, RoutedEventArgs e)     { HideLauncher(); App().ShowGeekbenchAI(); }
+    private void Launch_CB(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowCinebench();   }
+    private void Launch_SP(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowSpeedometer(); }
+    private void Launch_History(object sender, RoutedEventArgs e)  { HideLauncher(); App().ShowHistory();     }
+    private void Launch_Snapshot(object sender, RoutedEventArgs e) { HideLauncher(); App().ShowSnapshot();    }
+    private void Launch_ResetPos(object sender, RoutedEventArgs e) { HideLauncher(); ResetPosition();         }
+
+    private static App App() => (App)System.Windows.Application.Current;
 
     // ── Battery focus mode ────────────────────────────────────────────────
 
@@ -370,8 +413,11 @@ public partial class MainWindow : Window
     private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) =>
         RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(0.15, TimeSpan.FromMilliseconds(200)) { EasingFunction = new QuadraticEase() });
 
-    private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) =>
+    private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        HideLauncher();
         RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(300)) { EasingFunction = new QuadraticEase() });
+    }
 
     // ── Update loop ───────────────────────────────────────────────────────
 
@@ -435,8 +481,10 @@ public partial class MainWindow : Window
     private void UpdateDateTime()
     {
         var now = DateTime.Now;
-        TimeText.Text = now.ToString("h:mm tt");
-        DateText.Text = now.ToString("ddd, MMM d");
+        TimeText.Text      = now.ToString("h:mm tt");
+        DateText.Text      = now.ToString("ddd, MMM d");
+        LaunchTimeText.Text = TimeText.Text;
+        LaunchDateText.Text = DateText.Text;
     }
 
     private void UpdateBattery(WinForms.PowerStatus power)
