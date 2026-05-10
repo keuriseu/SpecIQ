@@ -186,6 +186,8 @@ public partial class MainWindow : Window
         LauncherPanel.Visibility = Visibility.Visible;
         AppHelpers.FadeIn(LauncherPanel);
         LauncherToggle.Foreground = BrushWhite;
+        // Restore full opacity so launcher buttons are clearly visible and clickable
+        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(150)) { EasingFunction = new QuadraticEase() });
         // Mirror clock into the launcher header so it stays live
         LaunchTimeText.Text = TimeText.Text;
         LaunchDateText.Text = DateText.Text;
@@ -410,8 +412,11 @@ public partial class MainWindow : Window
 
     // ── Hover fade ────────────────────────────────────────────────────────
 
-    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) =>
+    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        if (_launcherOpen) return; // keep full opacity while launcher is visible
         RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(0.15, TimeSpan.FromMilliseconds(200)) { EasingFunction = new QuadraticEase() });
+    }
 
     private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
     {
