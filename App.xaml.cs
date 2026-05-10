@@ -197,7 +197,7 @@ public partial class App : System.Windows.Application
             if (enable)
             {
                 var exePath = Environment.ProcessPath
-                    ?? System.Reflection.Assembly.GetExecutingAssembly().Location;
+                    ?? System.IO.Path.Combine(AppContext.BaseDirectory, "SpecIQ.exe");
                 key?.SetValue(RunRegistryValue, $"\"{exePath}\"");
             }
             else
