@@ -31,6 +31,13 @@ public static class SpecIQSettings
         set => Set("BanffPath", value);
     }
 
+    public static double UiScale
+    {
+        get => double.TryParse(Get("UiScale"), System.Globalization.NumberStyles.Float,
+                   System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 1.0;
+        set => Set("UiScale", value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     /// <summary>
     /// Corporate license credentials for Geekbench 6.
     /// Stored in the per-user settings file, never in source code.

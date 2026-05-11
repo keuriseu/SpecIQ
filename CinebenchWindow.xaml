@@ -112,7 +112,36 @@
                 </Grid>
 
                 <TextBlock x:Name="RunTrialText" Text="" Style="{StaticResource Label}"
-                           FontSize="9" Margin="0,0,0,10" Visibility="Collapsed"/>
+                           FontSize="9" Margin="0,0,0,8" Visibility="Collapsed"/>
+
+                <!-- Live trial scores (shown during multi-trial runs) -->
+                <Grid x:Name="LiveScoresGrid" Visibility="Collapsed" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="40"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- Headers -->
+                    <TextBlock Grid.Column="1" Text="T1" Style="{StaticResource Label}" FontSize="9" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Text="T2" Style="{StaticResource Label}" FontSize="9" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="T3" Style="{StaticResource Label}" FontSize="9" HorizontalAlignment="Center"/>
+                    <!-- Single -->
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Single" Style="{StaticResource Label}" FontSize="9" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LiveS1" Grid.Row="1" Grid.Column="1" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LiveS2" Grid.Row="1" Grid.Column="2" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LiveS3" Grid.Row="1" Grid.Column="3" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                    <!-- Multi -->
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Multi" Style="{StaticResource Label}" FontSize="9" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="LiveM1" Grid.Row="2" Grid.Column="1" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LiveM2" Grid.Row="2" Grid.Column="2" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="LiveM3" Grid.Row="2" Grid.Column="3" Text="—" Style="{StaticResource Value}" FontSize="11" HorizontalAlignment="Center"/>
+                </Grid>
 
                 <TextBlock Text="Cinebench runs in its own window." Style="{StaticResource Label}"
                            FontSize="10" Margin="0,0,0,12" Foreground="#50FFFFFF"/>

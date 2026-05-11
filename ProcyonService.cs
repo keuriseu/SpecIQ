@@ -26,13 +26,13 @@ public record ProcyonCvResult
 
 internal static class ProcyonService
 {
-    private static readonly string InstallDir = @"C:\Program Files\UL\Procyon";
-    private static readonly string CmdExe     = Path.Combine(InstallDir, "ProcyonCmd.exe");
-    private static readonly string Cv1Def     = Path.Combine(InstallDir, "ai_computer_vision_winml.def");
-    private static readonly string Cv2Def     = Path.Combine(InstallDir, "ai_computer_vision_2_npu_qnnep_winml.def");
+    private static readonly string InstallDir  = @"C:\Program Files\UL\Procyon";
+    private static readonly string CmdExe      = Path.Combine(InstallDir, "ProcyonCmd.exe");
+    private static readonly string Cv1Def      = Path.Combine(InstallDir, "ai_computer_vision_winml.def");
+    private static readonly string SnpeDef     = Path.Combine(InstallDir, "ai_computer_vision_snpe.def");
 
     public static string? FindInstalled() => File.Exists(CmdExe) ? CmdExe : null;
-    public static bool    IsNpuAvailable() => File.Exists(Cv2Def);
+    public static bool    IsNpuAvailable() => File.Exists(SnpeDef);
 
     public static string BackendLabel(ProcyonCvBackend b) => b switch
     {
@@ -40,7 +40,7 @@ internal static class ProcyonService
         ProcyonCvBackend.GpuF32 => "GPU  ·  FP32",
         ProcyonCvBackend.GpuF16 => "GPU  ·  FP16",
         ProcyonCvBackend.GpuInt => "GPU  ·  INT",
-        ProcyonCvBackend.NpuQnn => "NPU  ·  INT8 (QNN)",
+        ProcyonCvBackend.NpuQnn => "NPU  ·  SNPE (HTP)",
         _                       => b.ToString(),
     };
 
@@ -52,6 +52,11 @@ internal static class ProcyonService
         IProgress<string> progress,
         CancellationToken ct)
     {
+        var debugDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "SpecIQ", "procyon_debug");
+        Directory.CreateDirectory(debugDir);
+
         var tmpDir = Path.Combine(Path.GetTempPath(), $"SpecIQ_Procyon_{Guid.NewGuid():N}");
         Directory.CreateDirectory(tmpDir);
         try
@@ -65,6 +70,8 @@ internal static class ProcyonService
 
             var args = $"-d \"{defPath}\" --export-xml \"{xmlPath}\" --export-simple-csv \"{csvPath}\" --log \"{logPath}\"";
 
+            var stderrLines = new System.Text.StringBuilder();
+
             using var proc = new Process
             {
                 StartInfo = new ProcessStartInfo(exePath, args)
@@ -73,7 +80,13 @@ internal static class ProcyonService
                     RedirectStandardOutput = true,
                     RedirectStandardError  = true,
                     CreateNoWindow         = true,
+                    WorkingDirectory       = InstallDir,
                 }
+            };
+
+            proc.ErrorDataReceived += (_, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data)) stderrLines.AppendLine(e.Data);
             };
 
             proc.Start();
@@ -88,12 +101,23 @@ internal static class ProcyonService
             await proc.WaitForExitAsync(ct);
 
             if (ct.IsCancellationRequested) throw new OperationCanceledException();
-            if (proc.ExitCode != 0)         throw new Exception($"ProcyonCmd exited with code {proc.ExitCode}");
 
-            if (File.Exists(xmlPath)) return ParseXml(xmlPath, backend);
+            // Persist copies for debugging, overwriting previous run's files
+            if (File.Exists(xmlPath)) File.Copy(xmlPath, Path.Combine(debugDir, "result.xml"), overwrite: true);
+            if (File.Exists(csvPath)) File.Copy(csvPath, Path.Combine(debugDir, "result.csv"), overwrite: true);
+            if (File.Exists(logPath)) File.Copy(logPath, Path.Combine(debugDir, "run.log"),    overwrite: true);
+
+            // Check for results — try XML first, fall back to CSV if score is still 0
+            if (File.Exists(xmlPath))
+            {
+                var r = ParseXml(xmlPath, backend);
+                if (r.OverallScore > 0) return r;
+            }
             if (File.Exists(csvPath)) return ParseCsv(csvPath, backend);
 
-            throw new Exception("No result file produced.");
+            var stderr = stderrLines.ToString().Trim();
+            var detail = string.IsNullOrEmpty(stderr) ? "" : $"\n{stderr}";
+            throw new Exception($"ProcyonCmd exited with code {proc.ExitCode} and produced no results.{detail}");
         }
         finally
         {
@@ -105,9 +129,11 @@ internal static class ProcyonService
 
     private static string BuildDefXml(ProcyonCvBackend backend)
     {
-        bool isNpu = backend == ProcyonCvBackend.NpuQnn;
-        var doc = XDocument.Load(isNpu ? Cv2Def : Cv1Def);
+        // SNPE (NPU) uses its own def with fixed HTP+integer settings — no patching needed
+        if (backend == ProcyonCvBackend.NpuQnn)
+            return XDocument.Load(SnpeDef).ToString();
 
+        var doc = XDocument.Load(Cv1Def);
         foreach (var s in doc.Root!.Element("settings")!.Elements("setting"))
         {
             var name  = s.Element("name")?.Value;
@@ -117,19 +143,13 @@ internal static class ProcyonService
             switch (name)
             {
                 case "ai_device_type":
-                    valEl.Value = backend switch
-                    {
-                        ProcyonCvBackend.CpuF32 => "CPU",
-                        ProcyonCvBackend.NpuQnn => "NPU",
-                        _                       => "GPU",
-                    };
+                    valEl.Value = backend == ProcyonCvBackend.CpuF32 ? "CPU" : "GPU";
                     break;
                 case "ai_inference_precision":
                     valEl.Value = backend switch
                     {
                         ProcyonCvBackend.GpuF16 => "float16",
                         ProcyonCvBackend.GpuInt => "integer",
-                        ProcyonCvBackend.NpuQnn => "int8",
                         _                       => "float32",
                     };
                     break;
@@ -179,16 +199,55 @@ internal static class ProcyonService
         {
             var doc = XDocument.Load(path);
 
-            // Overall: look for any element whose local name contains "Result"
-            // and has a numeric "score" attribute
+            // Modern Procyon format: scores are element text values inside <result> elements
+            // e.g. <AIOverallScore>1940</AIOverallScore>, <AIMobileNetV3AverageInferenceTime>0.30</...>
+            // The summary result has passIndex == -1; per-pass results have passIndex >= 0.
+            var resultEl = doc.Descendants("result")
+                .OrderBy(r => int.TryParse(r.Element("passIndex")?.Value, out var p) ? p : int.MaxValue)
+                .FirstOrDefault();
+
+            if (resultEl != null)
+            {
+                var vals = resultEl.Elements()
+                    .Where(e => double.TryParse(e.Value,
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture, out _))
+                    .ToDictionary(
+                        e => e.Name.LocalName,
+                        e => Num(e.Value),
+                        StringComparer.OrdinalIgnoreCase);
+
+                double Lookup(params string[] kws)
+                {
+                    foreach (var kw in kws)
+                    {
+                        // Prefer "Average" fields over counts/median
+                        var hit = vals.FirstOrDefault(p =>
+                            p.Key.Contains(kw, StringComparison.OrdinalIgnoreCase) &&
+                            p.Key.Contains("Average", StringComparison.OrdinalIgnoreCase));
+                        if (hit.Value > 0) return hit.Value;
+                        // Any match that isn't a raw count
+                        hit = vals.FirstOrDefault(p =>
+                            p.Key.Contains(kw, StringComparison.OrdinalIgnoreCase) &&
+                            !p.Key.EndsWith("Count", StringComparison.OrdinalIgnoreCase));
+                        if (hit.Value > 0) return hit.Value;
+                    }
+                    return 0;
+                }
+
+                var overall = Lookup("OverallScore");
+                if (overall > 0) return Build(backend, overall, kws => Lookup(kws));
+            }
+
+            // Legacy format: score attributes on Result/Workload elements (older WinML XML)
             var benchEl = doc.Descendants()
                 .Where(e => e.Name.LocalName.Contains("Result", StringComparison.OrdinalIgnoreCase)
                          && e.Attribute("score") != null)
-                .OrderByDescending(e => e.Descendants().Count()) // prefer the wrapper element
+                .OrderByDescending(e => e.Descendants().Count())
                 .FirstOrDefault();
-            var overall = Num(benchEl?.Attribute("score")?.Value);
+            var legacyOverall = Num(benchEl?.Attribute("score")?.Value);
 
-            double Get(params string[] kws)
+            double LegacyGet(params string[] kws)
             {
                 foreach (var kw in kws)
                 {
@@ -204,9 +263,9 @@ internal static class ProcyonService
                 return 0;
             }
 
-            return Build(backend, overall, Get);
+            return Build(backend, legacyOverall, kws => LegacyGet(kws));
         }
-        catch { return new ProcyonCvResult { Backend = backend, IsNpu = backend == ProcyonCvBackend.NpuQnn }; }
+        catch { return new ProcyonCvResult { Backend = backend }; }
     }
 
     private static ProcyonCvResult ParseCsv(string path, ProcyonCvBackend backend)
@@ -232,7 +291,13 @@ internal static class ProcyonService
             {
                 foreach (var kw in kws)
                 {
-                    var hit = scores.FirstOrDefault(p => p.Key.Contains(kw, StringComparison.OrdinalIgnoreCase));
+                    var hit = scores.FirstOrDefault(p =>
+                        p.Key.Contains(kw, StringComparison.OrdinalIgnoreCase) &&
+                        p.Key.Contains("Average", StringComparison.OrdinalIgnoreCase));
+                    if (hit.Value > 0) return hit.Value;
+                    hit = scores.FirstOrDefault(p =>
+                        p.Key.Contains(kw, StringComparison.OrdinalIgnoreCase) &&
+                        !p.Key.EndsWith("Count", StringComparison.OrdinalIgnoreCase));
                     if (hit.Value > 0) return hit.Value;
                 }
                 return 0;
@@ -240,14 +305,14 @@ internal static class ProcyonService
 
             return Build(backend, overall, Get);
         }
-        catch { return new ProcyonCvResult { Backend = backend, IsNpu = backend == ProcyonCvBackend.NpuQnn }; }
+        catch { return new ProcyonCvResult { Backend = backend }; }
     }
 
     private static ProcyonCvResult Build(ProcyonCvBackend b, double overall, Func<string[], double> get)
         => new()
         {
             Backend      = b,
-            IsNpu        = b == ProcyonCvBackend.NpuQnn,
+            IsNpu        = false, // SNPE uses CV1 workloads — always show the CV1 grid
             OverallScore = overall,
             MobileNetV3  = get(["MobileNet"]),
             InceptionV4  = get(["Inception"]),

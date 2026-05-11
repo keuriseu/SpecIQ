@@ -130,8 +130,38 @@ public partial class MainWindow : Window
         Task.Run(ReadBatteryCapacity);
     }
 
+    // ── UI Scale ──────────────────────────────────────────────────────────
+
+    private static readonly double[] ScaleSteps = [0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.5];
+
+    private void ApplyScale(double scale)
+    {
+        scale = Math.Clamp(scale, ScaleSteps[0], ScaleSteps[^1]);
+        // Snap to nearest defined step
+        scale = ScaleSteps.MinBy(s => Math.Abs(s - scale));
+        SpecIQSettings.UiScale       = scale;
+        UiScaleTransform.ScaleX      = scale;
+        UiScaleTransform.ScaleY      = scale;
+        ScaleText.Text               = $"{(int)Math.Round(scale * 100)}%";
+        // Re-position after size change (SizeToContent recalculates on next layout pass)
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, PositionTopRight);
+    }
+
+    private void ScaleUp_Click(object sender, RoutedEventArgs e)
+    {
+        var next = ScaleSteps.FirstOrDefault(s => s > SpecIQSettings.UiScale + 0.01);
+        if (next > 0) ApplyScale(next);
+    }
+
+    private void ScaleDown_Click(object sender, RoutedEventArgs e)
+    {
+        var prev = ScaleSteps.LastOrDefault(s => s < SpecIQSettings.UiScale - 0.01);
+        if (prev > 0) ApplyScale(prev);
+    }
+
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
+        ApplyScale(SpecIQSettings.UiScale);
         PositionTopRight();
         _energySaverOn = EnergyHelper.IsOn(); // best-effort initial state
         UpdateAll();

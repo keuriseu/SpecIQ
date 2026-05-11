@@ -132,9 +132,14 @@ public partial class CinebenchWindow : Window
         ShowPanel(RunningPanel);
         RunPhaseText.Text       = "Starting…";
         RunTrialText.Visibility = Visibility.Collapsed;
+        LiveScoresGrid.Visibility = Visibility.Collapsed;
+        LiveS1.Text = LiveS2.Text = LiveS3.Text = "—";
+        LiveM1.Text = LiveM2.Text = LiveM3.Text = "—";
         _dotTimer.Start();
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
+
+        if (trials > 1) LiveScoresGrid.Visibility = Visibility.Visible;
 
         var results = new List<CinebenchResult>();
         BenchmarkGuard.Begin();
@@ -157,6 +162,9 @@ public partial class CinebenchWindow : Window
 
                 var result = await CinebenchService.RunAsync(_exePath, progress, mode, _cts.Token);
                 results.Add(result);
+
+                // Show this trial's score immediately
+                if (trials > 1) UpdateLiveScores(results, mode);
 
                 if (trials > 1 && trial < trials - 1)
                 {
@@ -194,6 +202,17 @@ public partial class CinebenchWindow : Window
     // ── Results ───────────────────────────────────────────────────────────
 
     private static string Fmt(double v) => v > 0 ? ((int)v).ToString("N0") : "—";
+
+    private void UpdateLiveScores(List<CinebenchResult> results, CinebenchMode mode)
+    {
+        var sBoxes = new[] { LiveS1, LiveS2, LiveS3 };
+        var mBoxes = new[] { LiveM1, LiveM2, LiveM3 };
+        for (int i = 0; i < 3; i++)
+        {
+            sBoxes[i].Text = i < results.Count && mode != CinebenchMode.Multi  ? Fmt(results[i].SingleCore) : "—";
+            mBoxes[i].Text = i < results.Count && mode != CinebenchMode.Single ? Fmt(results[i].MultiCore)  : "—";
+        }
+    }
 
     private void ShowSingleResult(CinebenchResult result, CinebenchMode mode)
     {

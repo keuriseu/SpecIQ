@@ -23,19 +23,43 @@ public static class GeekbenchAIService
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Geekbench AI 1"),
     ];
 
+    // On ARM64, prefer the native banff_aarch64.exe — the x64 banff.exe runs under emulation
+    // and its cpuinfo library crashes on newer Snapdragon chips (X2E and later).
+    private static string BanffExeName =>
+        RuntimeInformation.OSArchitecture == Architecture.Arm64
+            ? "banff_aarch64.exe"
+            : "banff.exe";
+
     public static string? FindInstalled()
     {
         if (SpecIQSettings.BanffPath is { Length: > 0 } cached && File.Exists(cached))
+        {
+            // If cached path is banff.exe but aarch64 build exists next to it, upgrade silently.
+            if (RuntimeInformation.OSArchitecture == Architecture.Arm64 &&
+                !cached.EndsWith("banff_aarch64.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                var aarch64 = Path.Combine(Path.GetDirectoryName(cached)!, "banff_aarch64.exe");
+                if (File.Exists(aarch64)) { SpecIQSettings.BanffPath = aarch64; return aarch64; }
+            }
             return cached;
+        }
 
-        var fromDir = SearchPaths
-            .Select(d => Path.Combine(d, "banff.exe"))
-            .FirstOrDefault(File.Exists);
-        if (fromDir != null) { SpecIQSettings.BanffPath = fromDir; return fromDir; }
+        // Prefer the architecture-native executable; fall back to banff.exe if not present.
+        var exeNames = RuntimeInformation.OSArchitecture == Architecture.Arm64
+            ? new[] { "banff_aarch64.exe", "banff.exe" }
+            : new[] { "banff.exe" };
+
+        foreach (var exe in exeNames)
+        {
+            var fromDir = SearchPaths
+                .Select(d => Path.Combine(d, exe))
+                .FirstOrDefault(File.Exists);
+            if (fromDir != null) { SpecIQSettings.BanffPath = fromDir; return fromDir; }
+        }
 
         try
         {
-            using var proc = Process.Start(new ProcessStartInfo("where", "banff.exe")
+            using var proc = Process.Start(new ProcessStartInfo("where", BanffExeName)
             {
                 UseShellExecute        = false,
                 RedirectStandardOutput = true,
@@ -77,10 +101,14 @@ public static class GeekbenchAIService
     /// Runs banff --ai-list and returns all available framework/backend/device combinations.
     /// Times out after 8 seconds and returns an empty list so the UI never hangs.
     /// </summary>
+    private static readonly string DebugDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SpecIQ");
+
     public static async Task<List<AIEntry>> ListAvailableAsync(string exePath)
     {
         var entries = new List<AIEntry>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        string rawOutput = "";
         try
         {
             using var proc = Process.Start(new ProcessStartInfo(exePath, "--ai-list")
@@ -98,8 +126,8 @@ public static class GeekbenchAIService
             await Task.WhenAll(stdoutTask, stderrTask).WaitAsync(cts.Token);
             await proc.WaitForExitAsync(cts.Token);
 
-            var output = stdoutTask.Result + stderrTask.Result;
-            foreach (var line in output.Split('\n'))
+            rawOutput = stdoutTask.Result + stderrTask.Result;
+            foreach (var line in rawOutput.Split('\n'))
             {
                 var t = line.Trim();
                 // Skip separator (+---+) and header (| Framework | ID |) rows
@@ -117,12 +145,23 @@ public static class GeekbenchAIService
                 entries.Add(new AIEntry(cols[0], fwId, cols[2], beId, cols[4], devId));
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Timeout or any failure — caller falls back to DefaultEntry
+            rawOutput += $"\n[exception: {ex.Message}]";
+        }
+        finally
+        {
+            // Always save raw output so we can diagnose categorization misses
+            try
+            {
+                Directory.CreateDirectory(DebugDir);
+                File.WriteAllText(Path.Combine(DebugDir, "banff-ai-list.txt"), rawOutput);
+            }
+            catch { }
         }
         return entries;
     }
+
 
     /// <summary>
     /// Maps an AIEntry to the high-level CPU / GPU / NPU category used by the UI.
@@ -233,6 +272,10 @@ public static class GeekbenchAIService
         }
 
         progress.Report($"[exit {proc.ExitCode}]");
+
+        if (proc.ExitCode != 0)
+            throw new Exception($"Geekbench AI exited with code {proc.ExitCode}.");
+
         return ParseResult(lines, CategorizeEntry(entry));
     }
 

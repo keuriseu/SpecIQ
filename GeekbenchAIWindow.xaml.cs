@@ -81,13 +81,15 @@ public partial class GeekbenchAIWindow : Window
         RunCpuBtn.IsEnabled    = true;
         RunCpuTrialsBtn.IsEnabled = true;
 
-        // Show NPU button immediately on Snapdragon (QNN may not be listed until drivers load)
+        // Show NPU row immediately on Snapdragon but keep buttons disabled until
+        // Phase 2 confirms the real numeric framework/backend IDs from --ai-list.
+        // (Passing the sentinel string "QNN" to --ai-framework causes banff.exe to crash.)
         if (GeekbenchAIService.IsSnapdragonDevice())
         {
-            _qnnEntry                 = GeekbenchAIService.QnnEntry;
+            _qnnEntry                 = GeekbenchAIService.QnnEntry; // sentinel — buttons stay off
             QnnRow.Visibility         = Visibility.Visible;
-            RunQnnBtn.IsEnabled       = true;
-            RunQnnTrialsBtn.IsEnabled  = true;
+            RunQnnBtn.IsEnabled       = false;
+            RunQnnTrialsBtn.IsEnabled = false;
         }
 
         // Phase 2 — background: run --ai-list (~10s) to get precise IDs; update GPU/QNN
@@ -117,14 +119,21 @@ public partial class GeekbenchAIWindow : Window
                     }
                     if (cat == AIBackend.Qnn && _qnnEntry?.FrameworkId == -2)
                     {
-                        // Replace sentinel with real IDs
-                        _qnnEntry = entry;
+                        // Replace sentinel with real numeric IDs, then enable buttons
+                        _qnnEntry                 = entry;
+                        RunQnnBtn.IsEnabled       = true;
+                        RunQnnTrialsBtn.IsEnabled = true;
                     }
                 }
 
-                // If QNN still not in list on Snapdragon, show it as disabled with hint
+                // If --ai-list finished but QNN wasn't in it, enable the button anyway on Snapdragon
+                // using the name-based sentinel (--ai-framework QNN). Some banff builds accept it.
                 if (GeekbenchAIService.IsSnapdragonDevice() && _qnnEntry?.FrameworkId == -2)
-                    StatusText.Text = (StatusText.Text.Length > 0 ? StatusText.Text + "  ·  " : "") + "QNN drivers not found";
+                {
+                    RunQnnBtn.IsEnabled       = true;
+                    RunQnnTrialsBtn.IsEnabled = true;
+                    StatusText.Text = (StatusText.Text.Length > 0 ? StatusText.Text + "  ·  " : "") + "QNN (name-based)";
+                }
             });
         });
     }
@@ -210,12 +219,14 @@ public partial class GeekbenchAIWindow : Window
 
                 if (trials > 1 && trial < trials - 1)
                 {
-                    for (int s = 60; s > 0; s--)
+                    RunTrialText.Text = $"Cooldown before Trial {trial + 2} of {trials}";
+                    for (int s = 60; s > 0 && !_cts.Token.IsCancellationRequested; s--)
                     {
-                        RunPhaseText.Text = $"Cooldown  {s}s";
+                        RunPhaseText.Text = $"Cooling down…  {s}s";
                         try { await Task.Delay(1000, _cts.Token); }
                         catch (OperationCanceledException) { break; }
                     }
+                    _cts.Token.ThrowIfCancellationRequested();
                 }
             }
 

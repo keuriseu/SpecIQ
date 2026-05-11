@@ -156,12 +156,14 @@ public partial class ProcyonWindow : Window
 
                 if (trials > 1 && trial < trials - 1)
                 {
-                    for (int s = 60; s > 0; s--)
+                    RunTrialText.Text = $"Cooldown before Trial {trial + 2} of {trials}";
+                    for (int s = 60; s > 0 && !_cts.Token.IsCancellationRequested; s--)
                     {
-                        RunPhaseText.Text = $"Cooldown  {s}s";
+                        RunPhaseText.Text = $"Cooling down…  {s}s";
                         try { await Task.Delay(1000, _cts.Token); }
                         catch (OperationCanceledException) { break; }
                     }
+                    _cts.Token.ThrowIfCancellationRequested();
                 }
             }
 
