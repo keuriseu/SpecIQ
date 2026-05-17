@@ -111,9 +111,12 @@ public static class SpeedometerService
         var profileDir = Path.Combine(Path.GetTempPath(), $"speciq_cdp_{Guid.NewGuid():N}");
 
         progress.Report("Launching browser…");
+        var isEdge   = browserExe.Contains("msedge", StringComparison.OrdinalIgnoreCase);
+        var guestFlag = isEdge ? "--inprivate" : "--incognito";
+
         var proc = Process.Start(new ProcessStartInfo(browserExe,
             $"--remote-debugging-port={port} --user-data-dir=\"{profileDir}\" " +
-            $"--no-first-run --no-default-browser-check --disable-extensions about:blank")
+            $"--no-first-run --no-default-browser-check --disable-extensions {guestFlag} about:blank")
             { UseShellExecute = false })
             ?? throw new InvalidOperationException("Failed to launch browser.");
 
@@ -170,6 +173,10 @@ public static class SpeedometerService
                         if (method == "Page.loadEventFired")
                             loadTcs.TrySetResult(true);
 
+                        if (method == "Page.javascriptDialogOpening")
+                            _ = SendCmd(new { id = cmdId++, method = "Page.handleJavaScriptDialog",
+                                @params = new { accept = true } });
+
                         if (method == "Runtime.bindingCalled" &&
                             node!["params"]?["name"]?.GetValue<string>() == "__speedometerScore__")
                         {
@@ -202,7 +209,7 @@ public static class SpeedometerService
             await SendCmd(new { id = cmdId++, method = "Runtime.evaluate",
                 @params = new { expression = script } });
 
-            var score = await scoreTcs.Task.WaitAsync(TimeSpan.FromMinutes(10), ct);
+            var score = await scoreTcs.Task.WaitAsync(TimeSpan.FromMinutes(30), ct);
             progress.Report($"Score: {score:F2}");
             return score;
         }

@@ -1,16 +1,20 @@
-<Window x:Class="SpecIQ.SpeedometerWindow"
+﻿<Window x:Class="SpecIQ.SpeedometerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SpecIQ — Speedometer 3.1"
         WindowStyle="None"
-        AllowsTransparency="True"
-        Background="Transparent"
+        Background="#1A1A2E"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
         SizeToContent="WidthAndHeight"
         Topmost="True"
         ShowInTaskbar="True"
         MouseLeftButtonDown="TitleBar_MouseDown">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
 
     <Window.Resources>
         <Style x:Key="Label" TargetType="TextBlock">
@@ -38,9 +42,6 @@
     </Window.Resources>
 
     <Border Background="#EE1A1A2E" CornerRadius="14" Width="400">
-        <Border.Effect>
-            <DropShadowEffect Color="Black" BlurRadius="30" Opacity="0.5" ShadowDepth="4"/>
-        </Border.Effect>
 
         <StackPanel>
 
@@ -213,9 +214,9 @@
                 </StackPanel>
 
                 <!-- Stats (single / rundown) -->
-                <Grid x:Name="StatsRow" Margin="0,0,0,16">
+                <Grid x:Name="StatsRow" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="FIRST" Style="{StaticResource Label}"/>
@@ -229,9 +230,24 @@
                         <TextBlock Text="AVG"   Style="{StaticResource Label}"/>
                         <TextBlock x:Name="ResAvg" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="3">
-                        <TextBlock Text="DROP"  Style="{StaticResource Label}"/>
-                        <TextBlock x:Name="ResDrop" Style="{StaticResource SmallVal}"/>
+                </Grid>
+
+                <!-- Battery + end time (rundown only) -->
+                <Grid x:Name="BatteryRow" Visibility="Collapsed" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="START BAT" Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResStartBat" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="END BAT"   Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResEndBat" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="ENDED AT"  Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResEndedAt" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
                 </Grid>
 

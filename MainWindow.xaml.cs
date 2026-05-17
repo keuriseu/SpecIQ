@@ -236,8 +236,11 @@ public partial class MainWindow : Window
     private void Launch_GBAI(object sender, RoutedEventArgs e)     { HideLauncher(); App().ShowGeekbenchAI(); }
     private void Launch_CB(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowCinebench();   }
     private void Launch_SP(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowSpeedometer(); }
-    private void Launch_Procyon(object sender, RoutedEventArgs e)  { HideLauncher(); App().ShowProcyon();     }
-    private void Launch_History(object sender, RoutedEventArgs e)  { HideLauncher(); App().ShowHistory();     }
+    private void Launch_Procyon(object sender, RoutedEventArgs e)        { HideLauncher(); App().ShowProcyon();       }
+    private void Launch_ProcyonOffice(object sender, RoutedEventArgs e) { HideLauncher(); App().ShowProcyonOffice(); }
+    private void Launch_Blender(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowBlender();       }
+    private void Launch_Suite(object sender, RoutedEventArgs e)           { HideLauncher(); App().ShowSuite();         }
+    private void Launch_History(object sender, RoutedEventArgs e)        { HideLauncher(); App().ShowHistory();      }
     private void Launch_Snapshot(object sender, RoutedEventArgs e) { HideLauncher(); App().ShowSnapshot();    }
     private void Launch_ResetPos(object sender, RoutedEventArgs e) { HideLauncher(); ResetPosition();         }
 
@@ -443,16 +446,11 @@ public partial class MainWindow : Window
 
     // ── Hover fade ────────────────────────────────────────────────────────
 
-    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
-    {
-        if (_launcherOpen) return; // keep full opacity while launcher is visible
-        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(0.15, TimeSpan.FromMilliseconds(200)) { EasingFunction = new QuadraticEase() });
-    }
+    private void Window_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e) { }
 
     private void Window_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
     {
         HideLauncher();
-        RootBorder.BeginAnimation(OpacityProperty, new DoubleAnimation(1.0, TimeSpan.FromMilliseconds(300)) { EasingFunction = new QuadraticEase() });
     }
 
     // ── Update loop ───────────────────────────────────────────────────────
@@ -647,8 +645,10 @@ public partial class MainWindow : Window
         try
         {
             var category = new PerformanceCounterCategory("GPU Engine");
+            // Include all shader/compute engine types; exclude the DMA copy engine which
+            // is a PCIe bus engine, not the GPU shader core.
             _gpuCounters = category.GetInstanceNames()
-                .Where(n => n.Contains("engtype_3D") || n.Contains("engtype_Graphics"))
+                .Where(n => n.Contains("engtype_") && !n.Contains("engtype_Copy"))
                 .Select(n => new PerformanceCounter("GPU Engine", "Utilization Percentage", n, true))
                 .ToList();
             foreach (var c in _gpuCounters) c.NextValue();
@@ -667,9 +667,20 @@ public partial class MainWindow : Window
 
         try
         {
-            float total = 0;
-            foreach (var c in _gpuCounters) total += c.NextValue();
-            total = Math.Clamp(total, 0f, 100f);
+            // Mirror Task Manager's algorithm: sum per-process values within each engine
+            // type, then take the highest-utilisation engine as the reported GPU %.
+            // Naively summing across all instances gives wrong results.
+            var byType = new Dictionary<string, float>(StringComparer.Ordinal);
+            foreach (var c in _gpuCounters)
+            {
+                var val  = c.NextValue();
+                var type = GpuEngineType(c.InstanceName);
+                byType.TryGetValue(type, out var prev);
+                byType[type] = prev + val;
+            }
+            var total = byType.Count > 0
+                ? Math.Clamp(byType.Values.Max(), 0f, 100f)
+                : 0f;
 
             GpuText.Text = $"{total:F0}%";
             GpuBar.Width = TrackWidth(GpuBar) * total / 100.0;
@@ -683,6 +694,13 @@ public partial class MainWindow : Window
             GpuText.Text = "0%";
             GpuBar.Width = 0;
         }
+    }
+
+    // Extracts the "engtype_Foo" suffix from a GPU Engine instance name.
+    private static string GpuEngineType(string instanceName)
+    {
+        var i = instanceName.LastIndexOf("engtype_", StringComparison.Ordinal);
+        return i >= 0 ? instanceName[i..] : instanceName;
     }
 
     private static readonly (string Category, string Counter)[] NpuCandidates =

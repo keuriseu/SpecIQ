@@ -4,16 +4,17 @@ using System.Text.Json.Serialization;
 
 namespace SpecIQ;
 
-public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV }
+public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV, ProcyonOffice, Blender }
 
 public class HistoryEntry
 {
-    public HistoryTool Tool   { get; set; }
-    public string RunAt       { get; set; } = DateTime.Now.ToString("o");
-    public string Note        { get; set; } = "";  // e.g. "CPU", "GPU ×3 avg", backend label
-    public double ScoreA      { get; set; }         // Single-Core / FP32 / Single
-    public double ScoreB      { get; set; }         // Multi-Core  / FP16 / Multi
-    public double ScoreC      { get; set; }         // —           / Quantized / —
+    public HistoryTool Tool      { get; set; }
+    public string RunAt          { get; set; } = DateTime.Now.ToString("o");
+    public string Note           { get; set; } = "";  // e.g. "CPU", "GPU ×3 avg", backend label
+    public double ScoreA         { get; set; }         // Single-Core / FP32 / Single
+    public double ScoreB         { get; set; }         // Multi-Core  / FP16 / Multi
+    public double ScoreC         { get; set; }         // —           / Quantized / —
+    public int?   DurationSeconds { get; set; }
 
     [JsonIgnore]
     public DateTime RunAtDate => DateTime.TryParse(RunAt, out var dt) ? dt : DateTime.MinValue;

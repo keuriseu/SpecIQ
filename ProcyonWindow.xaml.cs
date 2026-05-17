@@ -16,6 +16,7 @@ public partial class ProcyonWindow : Window
     private int                      _lastTrials      = 1;
     private readonly DispatcherTimer _dotTimer;
     private int                      _dotFrame;
+    private DateTime                 _benchmarkStart;
 
     private static readonly SolidColorBrush BrushSelected   = new(Color.FromRgb(0x0E, 0xA5, 0xE9));
     private static readonly SolidColorBrush BrushNpuSelected = new(Color.FromRgb(0x05, 0x96, 0x69));
@@ -106,14 +107,15 @@ public partial class ProcyonWindow : Window
     private void RunSingle_Click(object sender, RoutedEventArgs e) => _ = RunAsync(trials: 1);
     private void RunTrials_Click(object sender, RoutedEventArgs e) => _ = RunAsync(trials: 3);
     private void RunAgain_Click(object sender, RoutedEventArgs e)  => _ = RunAsync(_lastTrials);
-    private void Rundown_Click(object sender, RoutedEventArgs e)   => new RundownWindow().Show();
+    private void Rundown_Click(object sender, RoutedEventArgs e)   => ((App)System.Windows.Application.Current).ShowProcyonOffice();
 
     private async Task RunAsync(int trials)
     {
         if (_exePath == null) return;
 
-        _lastBackend = _selectedBackend;
-        _lastTrials  = trials;
+        _lastBackend    = _selectedBackend;
+        _lastTrials     = trials;
+        _benchmarkStart = DateTime.Now;
 
         var label = ProcyonService.BackendLabel(_selectedBackend);
         RunSubtitleText.Text    = label;
@@ -282,9 +284,10 @@ public partial class ProcyonWindow : Window
         var label = ProcyonService.BackendLabel(r.Backend);
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.ProcyonCV,
-            Note   = isTrialAvg ? $"{label}  ×3 avg" : label,
-            ScoreA = r.OverallScore,
+            Tool            = HistoryTool.ProcyonCV,
+            Note            = isTrialAvg ? $"{label}  ×3 avg" : label,
+            ScoreA          = r.OverallScore,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 

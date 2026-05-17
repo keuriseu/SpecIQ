@@ -22,6 +22,7 @@ public partial class GeekbenchAIWindow : Window
     private int                      _dotFrame;
     private AIBenchmarkSavedResult?  _previousResult;
     private bool                     _logScrollLocked;
+    private DateTime                 _benchmarkStart;
 
     public GeekbenchAIWindow()
     {
@@ -164,8 +165,9 @@ public partial class GeekbenchAIWindow : Window
     {
         if (_exePath == null) return;
 
-        _lastEntry  = entry;
-        _lastTrials = trials;
+        _lastEntry      = entry;
+        _lastTrials     = trials;
+        _benchmarkStart = DateTime.Now;
 
         var label = GeekbenchAIService.EntryLabel(entry);
         RunSubtitleText.Text    = $"{label}  ·  {Environment.MachineName}";
@@ -311,11 +313,12 @@ public partial class GeekbenchAIWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.GeekbenchAI,
-            Note   = label,
-            ScoreA = result.FullPrecision,
-            ScoreB = result.HalfPrecision,
-            ScoreC = result.Quantized,
+            Tool            = HistoryTool.GeekbenchAI,
+            Note            = label,
+            ScoreA          = result.FullPrecision,
+            ScoreB          = result.HalfPrecision,
+            ScoreC          = result.Quantized,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 
@@ -373,11 +376,12 @@ public partial class GeekbenchAIWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.GeekbenchAI,
-            Note   = label + " ×3 avg",
-            ScoreA = avgFP32.Max()  > 0 ? avgFP32.Average()  : 0,
-            ScoreB = avgFP16.Max()  > 0 ? avgFP16.Average()  : 0,
-            ScoreC = avgQuant.Max() > 0 ? avgQuant.Average() : 0,
+            Tool            = HistoryTool.GeekbenchAI,
+            Note            = label + " ×3 avg",
+            ScoreA          = avgFP32.Max()  > 0 ? avgFP32.Average()  : 0,
+            ScoreB          = avgFP16.Max()  > 0 ? avgFP16.Average()  : 0,
+            ScoreC          = avgQuant.Max() > 0 ? avgQuant.Average() : 0,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 

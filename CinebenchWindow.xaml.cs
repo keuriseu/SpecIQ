@@ -14,9 +14,10 @@ public partial class CinebenchWindow : Window
     private CancellationTokenSource? _cts;
     private CinebenchMode            _lastMode   = CinebenchMode.Both;
     private int                      _lastTrials = 1;
-    private CinebenchSavedResult?      _previousResult;
+    private CinebenchSavedResult?    _previousResult;
     private readonly DispatcherTimer _dotTimer;
     private int                      _dotFrame;
+    private DateTime                 _benchmarkStart;
 
     public CinebenchWindow()
     {
@@ -46,14 +47,31 @@ public partial class CinebenchWindow : Window
 
     private void Initialise()
     {
-        _exePath = SpecIQSettings.CinebenchPath is { Length: > 0 } saved
-                   && System.IO.File.Exists(saved) ? saved
-                   : CinebenchService.FindInstalled();
-
-        if (_exePath != null)
-            SpecIQSettings.CinebenchPath = _exePath;
-
+        _exePath        = CinebenchService.FindInstalled();
         _previousResult = CinebenchSavedResult.Load();
+
+        if (_exePath == null)
+            PromptForExe();
+        else
+            RefreshReady();
+    }
+
+    private void PromptForExe()
+    {
+        var dlg = new WinForms.OpenFileDialog
+        {
+            Title            = "Locate Cinebench.exe",
+            Filter           = "Cinebench.exe|Cinebench.exe|All executables|*.exe",
+            InitialDirectory = System.IO.Directory.Exists(@"C:\Data") ? @"C:\Data"
+                             : Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+        };
+
+        if (dlg.ShowDialog() == WinForms.DialogResult.OK)
+        {
+            _exePath = dlg.FileName;
+            SpecIQSettings.CinebenchPath = _exePath;
+        }
+
         RefreshReady();
     }
 
@@ -93,8 +111,11 @@ public partial class CinebenchWindow : Window
     {
         var dlg = new WinForms.OpenFileDialog
         {
-            Title  = "Locate Cinebench.exe",
-            Filter = "Cinebench.exe|Cinebench.exe|All executables|*.exe",
+            Title            = "Locate Cinebench.exe",
+            Filter           = "Cinebench.exe|Cinebench.exe|All executables|*.exe",
+            InitialDirectory = _exePath != null ? System.IO.Path.GetDirectoryName(_exePath)
+                             : System.IO.Directory.Exists(@"C:\Data") ? @"C:\Data"
+                             : Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
         };
 
         if (dlg.ShowDialog() == WinForms.DialogResult.OK)
@@ -126,8 +147,9 @@ public partial class CinebenchWindow : Window
             return;
         }
 
-        _lastMode   = mode;
-        _lastTrials = trials;
+        _lastMode        = mode;
+        _lastTrials      = trials;
+        _benchmarkStart  = DateTime.Now;
 
         ShowPanel(RunningPanel);
         RunPhaseText.Text       = "Starting…";
@@ -225,12 +247,13 @@ public partial class CinebenchWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.Cinebench,
-            Note   = mode == CinebenchMode.Single ? "Single Core"
-                   : mode == CinebenchMode.Multi  ? "Multi Core"
-                   : "Single + Multi",
-            ScoreA = result.SingleCore,
-            ScoreB = result.MultiCore,
+            Tool            = HistoryTool.Cinebench,
+            Note            = mode == CinebenchMode.Single ? "Single Core"
+                            : mode == CinebenchMode.Multi  ? "Multi Core"
+                            : "Single + Multi",
+            ScoreA          = result.SingleCore,
+            ScoreB          = result.MultiCore,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 
@@ -269,12 +292,13 @@ public partial class CinebenchWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.Cinebench,
-            Note   = mode == CinebenchMode.Single ? "Single Core ×3 avg"
-                   : mode == CinebenchMode.Multi  ? "Multi Core ×3 avg"
-                   : "Both ×3 avg",
-            ScoreA = avgS,
-            ScoreB = avgM,
+            Tool            = HistoryTool.Cinebench,
+            Note            = mode == CinebenchMode.Single ? "Single Core ×3 avg"
+                            : mode == CinebenchMode.Multi  ? "Multi Core ×3 avg"
+                            : "Both ×3 avg",
+            ScoreA          = avgS,
+            ScoreB          = avgM,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 

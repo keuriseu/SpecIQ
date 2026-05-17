@@ -58,19 +58,26 @@ public partial class HistoryWindow : Window
     {
         var (badgeHex, toolShort) = entry.Tool switch
         {
-            HistoryTool.Geekbench6  => ("#3B82F6", "GB6"),
-            HistoryTool.GeekbenchAI => ("#8B5CF6", "GBAI"),
-            HistoryTool.Cinebench   => ("#F59E0B", "CB"),
-            HistoryTool.ProcyonCV   => ("#0EA5E9", "PCV"),
-            _                       => ("#6B7280", "?"),
+            HistoryTool.Geekbench6    => ("#3B82F6", "GB6"),
+            HistoryTool.GeekbenchAI   => ("#8B5CF6", "GBAI"),
+            HistoryTool.Cinebench     => ("#F59E0B", "CB"),
+            HistoryTool.ProcyonCV     => ("#0EA5E9", "PCV"),
+            HistoryTool.ProcyonOffice => ("#10B981", "POFF"),
+            HistoryTool.Blender       => ("#F97316", "BLND"),
+            _                         => ("#6B7280", "?"),
         };
 
-        var age = DateTime.Now - entry.RunAtDate;
-        var dateStr = age.TotalMinutes < 1  ? "Just now"
-                    : age.TotalHours   < 1  ? $"{(int)age.TotalMinutes}m ago"
-                    : age.TotalDays    < 1  ? $"{(int)age.TotalHours}h ago"
-                    : age.TotalDays    < 7  ? $"{(int)age.TotalDays}d ago"
-                    : entry.RunAtDate.ToString("MMM d, yyyy");
+        // Date: absolute on older entries, relative for recent ones
+        var date    = entry.RunAtDate;
+        var age     = DateTime.Now - date;
+        var dateStr = age.TotalMinutes < 1 ? "Just now"
+                    : age.TotalHours   < 1 ? $"{(int)age.TotalMinutes}m ago"
+                    : age.TotalDays    < 1 ? $"{(int)age.TotalHours}h ago  ·  {date:h:mm tt}"
+                    : age.TotalDays    < 7 ? $"{(int)age.TotalDays}d ago  ·  {date:MMM d}"
+                    : date.ToString("MMM d, yyyy  h:mm tt");
+
+        // Duration
+        var durStr = FormatDuration(entry.DurationSeconds);
 
         var row = new Border
         {
@@ -104,7 +111,7 @@ public partial class HistoryWindow : Window
         };
         Grid.SetColumn(badge, 0);
 
-        // ── Note + date ──
+        // ── Note + date + duration ──
         var middle = new StackPanel
         {
             VerticalAlignment = VerticalAlignment.Center,
@@ -118,9 +125,11 @@ public partial class HistoryWindow : Window
             FontWeight = FontWeights.SemiBold,
             Foreground = Brushes.White,
         });
+        // Date + optional duration on one subdued line
+        var meta = durStr != null ? $"{dateStr}  ·  {durStr}" : dateStr;
         middle.Children.Add(new TextBlock
         {
-            Text       = dateStr,
+            Text       = meta,
             FontFamily = new FontFamily("Segoe UI"),
             FontSize   = 9,
             Foreground = new SolidColorBrush(Color.FromArgb(0x60, 0xFF, 0xFF, 0xFF)),
@@ -163,6 +172,15 @@ public partial class HistoryWindow : Window
         return row;
     }
 
+    private static string? FormatDuration(int? seconds)
+    {
+        if (seconds is null or <= 0) return null;
+        var t = TimeSpan.FromSeconds(seconds.Value);
+        if (t.TotalHours >= 1)  return $"{(int)t.TotalHours}h {t.Minutes:D2}m";
+        if (t.TotalMinutes >= 1) return $"{(int)t.TotalMinutes}m {t.Seconds:D2}s";
+        return $"{t.Seconds}s";
+    }
+
     private static Color HexColor(string hex)
     {
         hex = hex.TrimStart('#');
@@ -190,6 +208,8 @@ public partial class HistoryWindow : Window
                 if (e.ScoreB > 0) yield return ("nT", $"{(int)e.ScoreB:N0}");
                 break;
             case HistoryTool.ProcyonCV:
+            case HistoryTool.ProcyonOffice:
+            case HistoryTool.Blender:
                 if (e.ScoreA > 0) yield return ("Score", $"{(int)e.ScoreA:N0}");
                 break;
         }

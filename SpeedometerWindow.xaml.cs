@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -6,6 +7,7 @@ using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Wpf;
+using Microsoft.Win32;
 using WinForms  = System.Windows.Forms;
 using Color     = System.Windows.Media.Color;
 using FontFamily = System.Windows.Media.FontFamily;
@@ -17,6 +19,14 @@ namespace SpecIQ;
 
 public partial class SpeedometerWindow : Window
 {
+    // ── Sleep prevention ──────────────────────────────────────────────────
+
+    [DllImport("kernel32.dll")]
+    private static extern uint SetThreadExecutionState(uint esFlags);
+    private const uint ES_CONTINUOUS       = 0x80000000;
+    private const uint ES_SYSTEM_REQUIRED  = 0x00000001;
+    private const uint ES_DISPLAY_REQUIRED = 0x00000002;
+
     // ── State ─────────────────────────────────────────────────────────────
 
     private SpeedometerBrowser    _browser  = SpeedometerBrowser.WebView2;
@@ -135,7 +145,14 @@ public partial class SpeedometerWindow : Window
         _stopwatch.Restart();
         _clockTimer.Start();
 
-        var progress = new Progress<string>(msg =>
+        if (rundown)
+        {
+            PreventSleep();
+            BenchmarkGuard.Begin();
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        }
+
+        IProgress<string> progress = new Progress<string>(msg =>
         {
             RunLogText.Text += msg + "\n";
             RunLogScroll.ScrollToBottom();
@@ -150,16 +167,29 @@ public partial class SpeedometerWindow : Window
 
                 var power      = WinForms.SystemInformation.PowerStatus;
                 var batteryPct = (int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100);
-                if (batteryPct is >= 0 and <= 3) break;
+                // BatteryLifePercent returns -1 when unknown (e.g. AC power or brief glitch);
+                // after clamping that becomes 0, which would falsely trigger the low-battery break.
+                if (power.BatteryLifePercent is >= 0 and <= 0.03f) break;
 
                 double score;
-                if (_browser == SpeedometerBrowser.WebView2)
-                    score = await RunWebView2Async(progress, _cts.Token);
-                else
+                try
                 {
-                    var exe = SpeedometerService.FindBrowserExe(_browser)
-                        ?? throw new InvalidOperationException($"{_browser} not found.");
-                    score = await SpeedometerService.RunViaCdpAsync(exe, progress, _cts.Token);
+                    if (_browser == SpeedometerBrowser.WebView2)
+                        score = await RunWebView2Async(progress, _cts.Token);
+                    else
+                    {
+                        var exe = SpeedometerService.FindBrowserExe(_browser)
+                            ?? throw new InvalidOperationException($"{_browser} not found.");
+                        score = await SpeedometerService.RunViaCdpAsync(exe, progress, _cts.Token);
+                    }
+                }
+                catch (OperationCanceledException) { throw; }   // user pressed Stop — propagate
+                catch (Exception ex)
+                {
+                    // Transient failure (renderer crash, accidental window close, etc.)
+                    // Log it and continue to next iteration instead of aborting the rundown
+                    progress.Report($"[Iteration {iteration} failed: {ex.Message}]");
+                    continue;
                 }
 
                 var elapsed = (int)_stopwatch.Elapsed.TotalSeconds;
@@ -170,7 +200,7 @@ public partial class SpeedometerWindow : Window
                 _result.Entries.Add(entry);
                 _result.Save();
 
-                RunScore.Text = $"{score:F1}";
+                RunScore.Text = $"{_result.Entries.Average(e => e.Score):F1}";
                 RunBattery.Text = $"{batteryPct}%";
                 _ = Dispatcher.BeginInvoke(DispatcherPriority.Loaded,
                     () => DrawChart(RunChart, _result));
@@ -185,6 +215,12 @@ public partial class SpeedometerWindow : Window
         }
         finally
         {
+            if (rundown)
+            {
+                SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+                BenchmarkGuard.End();
+                AllowSleep();
+            }
             _stopwatch.Stop();
             _clockTimer.Stop();
             _cts = null;
@@ -229,6 +265,8 @@ public partial class SpeedometerWindow : Window
         {
             await webView!.EnsureCoreWebView2Async();
 
+            webView.CoreWebView2.ScriptDialogOpening += (_, e) => e.Accept();
+
             webView.CoreWebView2.WebMessageReceived += (_, e) =>
             {
                 var msg = e.TryGetWebMessageAsString();
@@ -252,7 +290,7 @@ public partial class SpeedometerWindow : Window
             webView.CoreWebView2.Navigate(SpeedometerService.SpeedometerUrl);
 
             using var reg = ct.Register(() => tcs.TrySetCanceled());
-            var score = await tcs.Task.WaitAsync(TimeSpan.FromMinutes(10), ct);
+            var score = await tcs.Task.WaitAsync(TimeSpan.FromMinutes(30), ct);
 
             await Dispatcher.InvokeAsync(() => hostWin?.Close());
             return score;
@@ -274,6 +312,18 @@ public partial class SpeedometerWindow : Window
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Suspend)
+            Dispatcher.BeginInvoke(() => _cts?.Cancel());
+    }
+
+    private static void PreventSleep() =>
+        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+
+    private static void AllowSleep() =>
+        SetThreadExecutionState(ES_CONTINUOUS);
 
     // ── Results ───────────────────────────────────────────────────────────
 
@@ -300,20 +350,25 @@ public partial class SpeedometerWindow : Window
             var first = result.Entries[0].Score;
             var last  = result.Entries[^1].Score;
             var avg   = result.Entries.Average(e => e.Score);
-            var drop  = first > 0 ? (first - last) * 100.0 / first : 0;
             ResFirst.Text = $"{first:F1}";
             ResLast.Text  = $"{last:F1}";
             ResAvg.Text   = $"{avg:F1}";
-            ResDrop.Text  = $"{drop:F1}%";
-            ResDrop.Foreground = drop > 20
-                ? new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
-                : drop > 10
-                    ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
-                    : new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
+
+            if (_rundown)
+            {
+                var startBat = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
+                var endBat   = $"{result.Entries[^1].BatteryPct}%";
+                var endedAt  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
+                ResStartBat.Text  = startBat;
+                ResEndBat.Text    = endBat;
+                ResEndedAt.Text   = endedAt;
+            }
         }
 
-        TrialsRow.Visibility = isTrials ? Visibility.Visible : Visibility.Collapsed;
-        StatsRow.Visibility  = !isTrials && result.Entries.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        var showStats   = !isTrials && result.Entries.Count > 1;
+        TrialsRow.Visibility  = isTrials   ? Visibility.Visible : Visibility.Collapsed;
+        StatsRow.Visibility   = showStats  ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showStats && _rundown ? Visibility.Visible : Visibility.Collapsed;
         ShowPanel(ResultsPanel);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }

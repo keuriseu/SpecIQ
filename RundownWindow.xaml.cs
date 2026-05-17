@@ -235,18 +235,19 @@ public partial class RundownWindow : Window
             var first = result.Entries[0].SingleScore;
             var last  = result.Entries[^1].SingleScore;
             var avg   = (int)result.Entries.Average(e => e.SingleScore);
-            var drop  = first > 0 ? (first - last) * 100.0 / first : 0;
             ResFirstText.Text = $"{first:N0}";
             ResLastText.Text  = $"{last:N0}";
             ResAvgText.Text   = $"{avg:N0}";
-            ResDropText.Text  = $"{drop:F1}%";
-            ResDropText.Foreground = drop > 20
-                ? new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
-                : drop > 10
-                    ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
-                    : new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
             StressStatsRow.Visibility  = Visibility.Collapsed;
             RegularStatsRow.Visibility = Visibility.Visible;
+        }
+
+        // Battery + end time (always shown when we have entries)
+        if (result.Entries.Count > 0)
+        {
+            ResStartBatText.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
+            ResEndBatText.Text   = $"{result.Entries[^1].BatteryPct}%";
+            ResEndedAtText.Text  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
         }
 
         ShowPanel(ResultsPanel);

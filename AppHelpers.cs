@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
@@ -81,5 +83,28 @@ internal static class AppHelpers
         dot1.Opacity = frame == 0 ? 1.0 : frame == 2 ? 0.25 : 0.5;
         dot2.Opacity = frame == 1 ? 1.0 : frame == 0 ? 0.25 : 0.5;
         dot3.Opacity = frame == 2 ? 1.0 : frame == 1 ? 0.25 : 0.5;
+    }
+
+    // ── DWM rounded corners (Windows 11) ─────────────────────────────────
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int attrValue, int attrSize);
+
+    private const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    private const int DWMWCP_ROUND                   = 2;
+
+    /// <summary>
+    /// Applies Windows 11 DWM rounded corners to a window.
+    /// Safe to call on older OS versions — the DWM call silently fails.
+    /// </summary>
+    public static void SetRoundedCorners(Window window)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(window).EnsureHandle();
+            var pref = DWMWCP_ROUND;
+            DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref pref, sizeof(int));
+        }
+        catch { }
     }
 }

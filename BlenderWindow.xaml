@@ -1,0 +1,417 @@
+﻿<Window x:Class="SpecIQ.BlenderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Blender"
+        WindowStyle="None"
+        Background="#1A1A2E"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Topmost="True"
+        ShowInTaskbar="True"
+        MouseLeftButtonDown="TitleBar_MouseDown">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+
+    <Window.Resources>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize"          Value="10"/>
+            <Setter Property="FontWeight"        Value="SemiBold"/>
+            <Setter Property="Foreground"        Value="#70FFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontFamily"        Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="BigVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="22"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="SmallVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="460">
+
+        <StackPanel>
+
+            <!-- ── Title bar ── -->
+            <Grid Margin="20,16,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="BLENDER" FontSize="11" FontWeight="Bold"
+                               Foreground="#F97316" FontFamily="Segoe UI"/>
+                    <TextBlock Text="  RENDER BENCHMARK" FontSize="11" FontWeight="Bold"
+                               Foreground="#94A3B8" FontFamily="Segoe UI"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CloseBtn}" Click="Close_Click"/>
+            </Grid>
+
+            <Border Height="1" Background="#15FFFFFF" Margin="0,12,0,0"/>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 CONFIG PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="Cycles render benchmark using official Blender Open Data scenes."
+                           Foreground="#70FFFFFF" FontSize="11" FontFamily="Segoe UI"
+                           TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                <!-- Blender status -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="BLENDER" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="StatusText" Text="Checking…"
+                                   FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Scenes status -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="SCENES" Style="{StaticResource Lbl}" Margin="0,0,0,8"/>
+
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Monster"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                            <TextBlock Grid.Column="1" x:Name="MonsterStatus" Text="✗ Not downloaded"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#60FFFFFF"/>
+                        </Grid>
+
+                        <Grid Margin="0,0,0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Junkshop"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                            <TextBlock Grid.Column="1" x:Name="JunkshopStatus" Text="✗ Not downloaded"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#60FFFFFF"/>
+                        </Grid>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Classroom"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                            <TextBlock Grid.Column="1" x:Name="ClassroomStatus" Text="✗ Not downloaded"
+                                       FontSize="11" FontFamily="Segoe UI" Foreground="#60FFFFFF"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Download progress (visible during download) -->
+                <Border x:Name="DownloadProgressBorder" Visibility="Collapsed"
+                        Background="#0FF97316" CornerRadius="6" Padding="12,8" Margin="0,0,0,10">
+                    <TextBlock x:Name="DownloadProgressText"
+                               FontSize="11" FontFamily="Segoe UI" Foreground="#F97316"
+                               TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- Launcher-not-found notice (shown when CLI is missing) -->
+                <Border x:Name="NoLauncherBorder" Visibility="Collapsed"
+                        Background="#25F97316" CornerRadius="6" Padding="12,10" Margin="0,0,0,10"
+                        BorderBrush="#50F97316" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="benchmark-launcher-cli.exe not found automatically."
+                                   FontSize="11" FontFamily="Segoe UI" Foreground="#F97316"
+                                   TextWrapping="Wrap" Margin="0,0,0,8"/>
+                        <Button Content="Browse for benchmark-launcher-cli.exe…"
+                                Background="#7C2D12" Style="{StaticResource Btn}"
+                                Click="BrowseCli_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Download button (only shown when launcher is found but Blender/scenes not ready) -->
+                <Button x:Name="DownloadBtn" Content="Download Missing Scenes"
+                        Visibility="Collapsed"
+                        Background="#7C2D12" Style="{StaticResource Btn}"
+                        Click="Download_Click" Margin="0,0,0,10"/>
+
+                <!-- Compute device selector -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                            <TextBlock Text="COMPUTE DEVICE" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                            <TextBlock Text="CPU is always available; GPU requires compatible driver"
+                                       FontSize="9" FontFamily="Segoe UI" Foreground="#50FFFFFF"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <ComboBox x:Name="DeviceCombo" Grid.Column="1"
+                                  FontFamily="Segoe UI" FontSize="11"
+                                  Width="130" VerticalAlignment="Center"
+                                  Background="#1AFFFFFF" Foreground="White"
+                                  BorderBrush="#20FFFFFF">
+                            <ComboBoxItem Content="CPU" IsSelected="True"/>
+                            <ComboBoxItem Content="CUDA (NVIDIA)"/>
+                            <ComboBoxItem Content="OPTIX (NVIDIA RTX)"/>
+                            <ComboBoxItem Content="HIP (AMD)"/>
+                            <ComboBoxItem Content="ONEAPI (Intel Arc)"/>
+                        </ComboBox>
+                    </Grid>
+                </Border>
+
+                <!-- Previous result -->
+                <Border x:Name="PreviousResultsBorder" Visibility="Collapsed"
+                        Background="#0FFFFFFF" CornerRadius="6" Margin="0,0,0,10" Padding="12,10"
+                        Cursor="Hand" MouseDown="ViewPrevious_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="↩  " Foreground="#F97316" FontSize="11"/>
+                        <StackPanel>
+                            <TextBlock Text="PREVIOUS RESULT" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="PreviousSummaryText"
+                                       FontSize="11" FontFamily="Segoe UI"
+                                       Foreground="#CCFFFFFF" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Start buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="SingleBtn"  Grid.Column="0" Content="Single Run"
+                            Background="#C2410C" Style="{StaticResource Btn}" Click="StartSingle_Click"/>
+                    <Button x:Name="TrialsBtn"  Grid.Column="2" Content="3 Trials"
+                            Background="#C2410C" Style="{StaticResource Btn}" Click="StartTrials_Click"/>
+                    <Button x:Name="RundownBtn" Grid.Column="4" Content="Rundown"
+                            Background="#C2410C" Style="{StaticResource Btn}" Click="StartRundown_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 RUNNING PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="RunSubtitleText" FontSize="11" FontFamily="Segoe UI"
+                           Foreground="#94A3B8" Margin="0,0,0,16"/>
+
+                <!-- Live stats row -->
+                <Grid Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="COMBINED" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunScore" Text="—" Style="{StaticResource BigVal}"
+                                   Foreground="#F97316" FontSize="26"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="BATTERY" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunBattery" Text="—" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                        <TextBlock Text="ELAPSED" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunElapsed" Text="0:00:00" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Per-scene scores -->
+                <Border Background="#0AFFFFFF" CornerRadius="6" Padding="10,8" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="1" Background="#15FFFFFF"/>
+                        <Border Grid.Column="3" Background="#15FFFFFF"/>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="MONSTER"   Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="RunMonster"   Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="JUNKSHOP"  Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="RunJunkshop"  Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                            <TextBlock Text="CLASSROOM" Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="RunClassroom" Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <TextBlock x:Name="RunIterText" Text="Iteration 1"
+                           FontSize="11" FontFamily="Segoe UI" Foreground="#94A3B8" Margin="0,0,0,8"/>
+
+                <!-- Live mini-chart -->
+                <Canvas x:Name="RunChart" Height="80" Margin="0,0,0,8"
+                        Background="#08FFFFFF" ClipToBounds="True"/>
+
+                <!-- Log -->
+                <ScrollViewer x:Name="RunLogScroll" MaxHeight="120" Margin="0,0,0,12"
+                              VerticalScrollBarVisibility="Auto" Background="#08FFFFFF">
+                    <TextBlock x:Name="RunLogText" FontSize="10" FontFamily="Consolas"
+                               Foreground="#80FFFFFF" TextWrapping="Wrap" Padding="8"/>
+                </ScrollViewer>
+
+                <Button Content="Stop" Background="#DC2626" Style="{StaticResource Btn}"
+                        Click="Stop_Click"/>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 RESULTS PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="ResTypeText" FontSize="12" FontWeight="SemiBold"
+                           FontFamily="Segoe UI" Foreground="White" Margin="0,0,0,4"/>
+
+                <!-- Duration + iterations + device -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="DURATION"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResDurationText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ITERATIONS" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResIterText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="DEVICE" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResDeviceText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Chart -->
+                <Canvas x:Name="ResChart" Height="140" Margin="0,0,0,16"
+                        Background="#08FFFFFF" ClipToBounds="True"
+                        Loaded="ResChart_Loaded"/>
+
+                <!-- Trials row: Trial 1 / 2 / 3 + average card -->
+                <StackPanel x:Name="TrialsRow" Visibility="Collapsed" Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="TRIAL 1" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial1" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="TRIAL 2" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial2" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                            <TextBlock Text="TRIAL 3" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial3" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Background="#0AF97316" CornerRadius="8" Padding="12,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="AVERAGE" Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResTrialsAvg" FontSize="36" FontWeight="Light"
+                                       FontFamily="Segoe UI" Foreground="#F97316"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Stats row: First / Last / Avg / Drop (single + rundown) -->
+                <Grid x:Name="StatsRow" Visibility="Collapsed" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="FIRST" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResFirst" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="LAST"  Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResLast" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="AVG"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResAvg" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="DROP"  Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResDrop" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Scene breakdown: BMW27 | Monster | Classroom (avg render seconds) -->
+                <Border x:Name="SubScoresBorder" Visibility="Collapsed"
+                        Background="#0AFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="1" Background="#15FFFFFF"/>
+                        <Border Grid.Column="3" Background="#15FFFFFF"/>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="MONSTER"         Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResMonster" Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="JUNKSHOP"        Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResJunkshop" Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                            <TextBlock Text="CLASSROOM"       Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResClassroom" Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Action buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Export"
+                            Background="#1E293B" Style="{StaticResource Btn}" Click="Export_Click"/>
+                    <Button Grid.Column="2" Content="Close"
+                            Background="#1E293B" Style="{StaticResource Btn}" Click="Close_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+</Window>

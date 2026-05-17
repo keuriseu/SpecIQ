@@ -1,0 +1,295 @@
+﻿<Window x:Class="SpecIQ.ProcyonOfficeWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="SpecIQ — Procyon Office"
+        WindowStyle="None"
+        Background="#1A1A2E"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Topmost="True"
+        ShowInTaskbar="True"
+        MouseLeftButtonDown="TitleBar_MouseDown">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
+                      GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+
+    <Window.Resources>
+        <Style x:Key="Lbl" TargetType="TextBlock">
+            <Setter Property="FontSize"          Value="10"/>
+            <Setter Property="FontWeight"        Value="SemiBold"/>
+            <Setter Property="Foreground"        Value="#70FFFFFF"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="FontFamily"        Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="BigVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="22"/>
+            <Setter Property="FontWeight" Value="Light"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+        <Style x:Key="SmallVal" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="460">
+
+        <StackPanel>
+
+            <!-- ── Title bar ── -->
+            <Grid Margin="20,16,16,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="PROCYON" FontSize="11" FontWeight="Bold"
+                               Foreground="#10B981" FontFamily="Segoe UI"/>
+                    <TextBlock Text="  OFFICE PRODUCTIVITY" FontSize="11" FontWeight="Bold"
+                               Foreground="#94A3B8" FontFamily="Segoe UI"/>
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource CloseBtn}" Click="Close_Click"/>
+            </Grid>
+
+            <Border Height="1" Background="#15FFFFFF" Margin="0,12,0,0"/>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 CONFIG PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
+
+                <TextBlock Text="Microsoft Office workloads benchmark (Word, Excel, PowerPoint, Outlook)."
+                           Foreground="#70FFFFFF" FontSize="11" FontFamily="Segoe UI"
+                           TextWrapping="Wrap" Margin="0,0,0,14"/>
+
+                <!-- Status -->
+                <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,14">
+                    <StackPanel>
+                        <TextBlock Text="PROCYON OFFICE" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                        <TextBlock x:Name="StatusText" Text="Checking…"
+                                   FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Previous result -->
+                <Border x:Name="PreviousResultsBorder" Visibility="Collapsed"
+                        Background="#0FFFFFFF" CornerRadius="6" Margin="0,0,0,14" Padding="12,10"
+                        Cursor="Hand" MouseDown="ViewPrevious_Click">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="↩  " Foreground="#10B981" FontSize="11"/>
+                        <StackPanel>
+                            <TextBlock Text="PREVIOUS RESULT" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="PreviousSummaryText"
+                                       FontSize="11" FontFamily="Segoe UI"
+                                       Foreground="#CCFFFFFF" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Start buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/><ColumnDefinition Width="6"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="SingleBtn"  Grid.Column="0" Content="Single Run"
+                            Background="#059669" Style="{StaticResource Btn}" Click="StartSingle_Click"/>
+                    <Button x:Name="TrialsBtn"  Grid.Column="2" Content="3 Trials"
+                            Background="#059669" Style="{StaticResource Btn}" Click="StartTrials_Click"/>
+                    <Button x:Name="RundownBtn" Grid.Column="4" Content="Rundown"
+                            Background="#059669" Style="{StaticResource Btn}" Click="StartRundown_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 RUNNING PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="RunningPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="RunSubtitleText" FontSize="11" FontFamily="Segoe UI"
+                           Foreground="#94A3B8" Margin="0,0,0,16"/>
+
+                <!-- Live stats row -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SCORE"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunScore" Text="—" Style="{StaticResource BigVal}"
+                                   Foreground="#10B981" FontSize="26"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock Text="BATTERY" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunBattery" Text="—" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                        <TextBlock Text="ELAPSED" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="RunElapsed" Text="0:00:00" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock x:Name="RunIterText" Text="Iteration 1"
+                           FontSize="11" FontFamily="Segoe UI" Foreground="#94A3B8" Margin="0,0,0,8"/>
+
+                <!-- Live mini-chart -->
+                <Canvas x:Name="RunChart" Height="80" Margin="0,0,0,8"
+                        Background="#08FFFFFF" ClipToBounds="True"/>
+
+                <!-- Log -->
+                <ScrollViewer x:Name="RunLogScroll" MaxHeight="100" Margin="0,0,0,12"
+                              VerticalScrollBarVisibility="Auto" Background="#08FFFFFF">
+                    <TextBlock x:Name="RunLogText" FontSize="10" FontFamily="Consolas"
+                               Foreground="#80FFFFFF" TextWrapping="Wrap" Padding="8"/>
+                </ScrollViewer>
+
+                <Button Content="Stop" Background="#DC2626" Style="{StaticResource Btn}"
+                        Click="Stop_Click"/>
+
+            </StackPanel>
+
+            <!-- ══════════════════════════════════════════════════════════════
+                 RESULTS PANEL
+                 ══════════════════════════════════════════════════════════════ -->
+            <StackPanel x:Name="ResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
+
+                <TextBlock x:Name="ResTypeText" FontSize="12" FontWeight="SemiBold"
+                           FontFamily="Segoe UI" Foreground="White" Margin="0,0,0,4"/>
+
+                <!-- Duration + iterations -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="DURATION"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResDurationText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="ITERATIONS" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResIterText" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Chart -->
+                <Canvas x:Name="ResChart" Height="140" Margin="0,0,0,16"
+                        Background="#08FFFFFF" ClipToBounds="True"
+                        Loaded="ResChart_Loaded"/>
+
+                <!-- Trials row: Trial 1 / 2 / 3 + average card -->
+                <StackPanel x:Name="TrialsRow" Visibility="Collapsed" Margin="0,0,0,16">
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="TRIAL 1" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial1" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="TRIAL 2" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial2" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Right">
+                            <TextBlock Text="TRIAL 3" Style="{StaticResource Lbl}"/>
+                            <TextBlock x:Name="ResTrial3" Style="{StaticResource SmallVal}"/>
+                        </StackPanel>
+                    </Grid>
+                    <Border Background="#0A10B981" CornerRadius="8" Padding="12,10">
+                        <StackPanel HorizontalAlignment="Center">
+                            <TextBlock Text="AVERAGE" Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResTrialsAvg" FontSize="36" FontWeight="Light"
+                                       FontFamily="Segoe UI" Foreground="#10B981"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Stats row: First / Last / Avg / Drop (single + rundown) -->
+                <Grid x:Name="StatsRow" Visibility="Collapsed" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="FIRST" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResFirst" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="LAST"  Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResLast" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="AVG"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResAvg" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3">
+                        <TextBlock Text="DROP"  Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResDrop" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Sub-score breakdown: Word | Excel | PowerPoint | Outlook -->
+                <Border x:Name="SubScoresBorder" Visibility="Collapsed"
+                        Background="#0AFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
+                            <ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="1" Background="#15FFFFFF"/>
+                        <Border Grid.Column="3" Background="#15FFFFFF"/>
+                        <Border Grid.Column="5" Background="#15FFFFFF"/>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                            <TextBlock Text="WORD"       Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResWord"  Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                            <TextBlock Text="EXCEL"       Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResExcel"  Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                            <TextBlock Text="POWERPOINT" Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResPPT"   Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="6" HorizontalAlignment="Center">
+                            <TextBlock Text="OUTLOOK"     Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResOutlook" Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Action buttons -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" x:Name="ExportBtn" Content="Export"
+                            Background="#1E293B" Style="{StaticResource Btn}" Click="Export_Click"/>
+                    <Button Grid.Column="2" Content="Close"
+                            Background="#1E293B" Style="{StaticResource Btn}" Click="Close_Click"/>
+                </Grid>
+
+            </StackPanel>
+
+        </StackPanel>
+    </Border>
+</Window>

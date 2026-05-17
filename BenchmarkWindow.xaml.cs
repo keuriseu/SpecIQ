@@ -14,8 +14,9 @@ public partial class BenchmarkWindow : Window
     private int                       _dotFrame;
     private bool                      _lastGpu;
     private int                       _lastTrials = 1;
-    private string?                    _lastResultUrl;
+    private string?                   _lastResultUrl;
     private bool                      _logScrollLocked;
+    private DateTime                  _benchmarkStart;
 
     public BenchmarkWindow()
     {
@@ -133,9 +134,10 @@ public partial class BenchmarkWindow : Window
             if (r != MessageBoxResult.OK) return;
         }
 
-        _lastGpu    = gpu;
-        _lastTrials = trials;
+        _lastGpu         = gpu;
+        _lastTrials      = trials;
         _logScrollLocked = false;
+        _benchmarkStart  = DateTime.Now;
 
         ShowPanel(RunningPanel);
         RunPhaseText.Text       = trials > 1 ? "Trial 1 of 3" : "Starting…";
@@ -231,10 +233,11 @@ public partial class BenchmarkWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.Geekbench6,
-            Note   = gpu ? "GPU" : "CPU",
-            ScoreA = result.SingleCore,
-            ScoreB = result.MultiCore,
+            Tool            = HistoryTool.Geekbench6,
+            Note            = gpu ? "GPU" : "CPU",
+            ScoreA          = result.SingleCore,
+            ScoreB          = result.MultiCore,
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
 
         if (System.Windows.Application.Current.MainWindow is MainWindow main)
@@ -278,10 +281,11 @@ public partial class BenchmarkWindow : Window
 
         BenchmarkHistory.Append(new HistoryEntry
         {
-            Tool   = HistoryTool.Geekbench6,
-            Note   = gpu ? "GPU ×3 avg" : "CPU ×3 avg",
-            ScoreA = results.Select(r => r.SingleCore).Average(),
-            ScoreB = results.Select(r => r.MultiCore).Average(),
+            Tool            = HistoryTool.Geekbench6,
+            Note            = gpu ? "GPU ×3 avg" : "CPU ×3 avg",
+            ScoreA          = results.Select(r => r.SingleCore).Average(),
+            ScoreB          = results.Select(r => r.MultiCore).Average(),
+            DurationSeconds = (int)(DateTime.Now - _benchmarkStart).TotalSeconds,
         });
     }
 

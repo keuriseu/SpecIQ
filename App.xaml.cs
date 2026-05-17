@@ -12,6 +12,11 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Apply Windows 11 rounded corners to every window when it loads
+        EventManager.RegisterClassHandler(
+            typeof(Window), FrameworkElement.LoadedEvent,
+            new RoutedEventHandler((s, _) => AppHelpers.SetRoundedCorners((Window)s)));
+
         _trayIcon = new WinForms.NotifyIcon
         {
             Icon = SystemIcons.Information,
@@ -74,6 +79,14 @@ public partial class App : System.Windows.Application
         var procyonItem = new WinForms.ToolStripMenuItem("Procyon AI CV…");
         procyonItem.Click += (_, _) => ShowProcyon();
         menu.Items.Add(procyonItem);
+
+        var procyonOfficeItem = new WinForms.ToolStripMenuItem("Procyon Office…");
+        procyonOfficeItem.Click += (_, _) => ShowProcyonOffice();
+        menu.Items.Add(procyonOfficeItem);
+
+        var blenderItem = new WinForms.ToolStripMenuItem("Blender…");
+        blenderItem.Click += (_, _) => ShowBlender();
+        menu.Items.Add(blenderItem);
 
         var aboutItem = new WinForms.ToolStripMenuItem("About SpecIQ");
         aboutItem.Click += (_, _) => ShowAbout();
@@ -218,6 +231,32 @@ public partial class App : System.Windows.Application
         _cinebenchWindow.Show();
     }
 
+    private ProcyonOfficeWindow? _procyonOfficeWindow;
+
+    internal void ShowProcyonOffice()
+    {
+        if (_procyonOfficeWindow is { IsLoaded: true })
+        {
+            _procyonOfficeWindow.Activate();
+            return;
+        }
+        _procyonOfficeWindow = new ProcyonOfficeWindow();
+        _procyonOfficeWindow.Show();
+    }
+
+    private BlenderWindow? _blenderWindow;
+
+    internal void ShowBlender()
+    {
+        if (_blenderWindow is { IsLoaded: true })
+        {
+            _blenderWindow.Activate();
+            return;
+        }
+        _blenderWindow = new BlenderWindow();
+        _blenderWindow.Show();
+    }
+
     private ProcyonWindow? _procyonWindow;
 
     internal void ShowProcyon()
@@ -229,6 +268,19 @@ public partial class App : System.Windows.Application
         }
         _procyonWindow = new ProcyonWindow();
         _procyonWindow.Show();
+    }
+
+    private SuiteWindow? _suiteWindow;
+
+    internal void ShowSuite()
+    {
+        if (_suiteWindow is { IsLoaded: true })
+        {
+            _suiteWindow.Activate();
+            return;
+        }
+        _suiteWindow = new SuiteWindow();
+        _suiteWindow.Show();
     }
 
     private AboutWindow? _aboutWindow;
