@@ -20,9 +20,13 @@ public class RundownResult
     public int     StartBatteryPct  { get; set; } = -1;
     public string  MachineName      { get; set; } = Environment.MachineName;
     public string  StartedAt        { get; set; } = DateTime.Now.ToString("o");
+    public int    TotalElapsedSeconds { get; set; }
     public List<RundownEntry> Entries { get; set; } = [];
 
-    [JsonIgnore] public TimeSpan TotalDuration  => Entries.Count > 0 ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) : TimeSpan.Zero;
+    [JsonIgnore] public TimeSpan TotalDuration  =>
+        TotalElapsedSeconds > 0 ? TimeSpan.FromSeconds(TotalElapsedSeconds) :
+        Entries.Count > 0       ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) :
+        TimeSpan.Zero;
     [JsonIgnore] public int      IterationCount => Entries.Count;
     [JsonIgnore] public bool     IsGpu          => BenchmarkType == "GPU";
     [JsonIgnore] public bool     IsStress       => BenchmarkType == "Stress";

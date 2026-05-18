@@ -16,9 +16,13 @@ public class SpeedometerResult
     public string  MachineName     { get; set; } = Environment.MachineName;
     public string  StartedAt       { get; set; } = DateTime.Now.ToString("o");
     public int     StartBatteryPct { get; set; } = -1;
+    public int    TotalElapsedSeconds { get; set; }
     public List<SpeedometerEntry> Entries { get; set; } = [];
 
-    [JsonIgnore] public TimeSpan TotalDuration  => Entries.Count > 0 ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) : TimeSpan.Zero;
+    [JsonIgnore] public TimeSpan TotalDuration  =>
+        TotalElapsedSeconds > 0 ? TimeSpan.FromSeconds(TotalElapsedSeconds) :
+        Entries.Count > 0       ? TimeSpan.FromSeconds(Entries[^1].ElapsedSeconds) :
+        TimeSpan.Zero;
     [JsonIgnore] public int      IterationCount => Entries.Count;
 
     public static string FilePath => Path.Combine(
@@ -55,11 +59,14 @@ public class SpeedometerResult
             sb.AppendLine($"{e.Iteration,4}  {e.Score,10:F2}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
         if (Entries.Count > 1)
         {
-            var first = Entries[0].Score;
-            var last  = Entries[^1].Score;
-            var avg   = Entries.Average(e => e.Score);
-            var drop  = first > 0 ? (first - last) * 100.0 / first : 0;
-            sb.AppendLine($"Score: First {first:F2}  Last {last:F2}  Avg {avg:F2}  Drop {drop:F1}%");
+            var first   = Entries[0].Score;
+            var last    = Entries[^1].Score;
+            var avg     = Entries.Average(e => e.Score);
+            var endBat  = Entries[^1].BatteryPct;
+            var endedAt = DateTime.Parse(StartedAt).Add(TotalDuration).ToString("g");
+            sb.AppendLine();
+            sb.AppendLine($"Overall: First {first:F2}  Last {last:F2}  Avg {avg:F2}");
+            sb.AppendLine($"End battery: {endBat}%  ·  Ended: {endedAt}");
         }
         return sb.ToString();
     }

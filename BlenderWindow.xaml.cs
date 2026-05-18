@@ -1,10 +1,12 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using Microsoft.Win32;
 using WinForms   = System.Windows.Forms;
 using Color      = System.Windows.Media.Color;
 using FontFamily = System.Windows.Media.FontFamily;
@@ -16,6 +18,14 @@ namespace SpecIQ;
 
 public partial class BlenderWindow : Window
 {
+    // ── Sleep prevention ──────────────────────────────────────────────────
+
+    [DllImport("kernel32.dll")]
+    private static extern uint SetThreadExecutionState(uint esFlags);
+    private const uint ES_CONTINUOUS       = 0x80000000;
+    private const uint ES_SYSTEM_REQUIRED  = 0x00000001;
+    private const uint ES_DISPLAY_REQUIRED = 0x00000002;
+
     // ── State ─────────────────────────────────────────────────────────────
 
     private string?                  _cli;
@@ -27,6 +37,7 @@ public partial class BlenderWindow : Window
     private BlenderRundownResult?    _previousResult;
     private bool                     _rundown;
     private int                      _maxIterations;
+    private int                      _tickCount;
     private string                   _deviceType = "CPU";
 
     private static readonly Color Accent = Color.FromRgb(0xF9, 0x73, 0x16);
@@ -243,6 +254,7 @@ public partial class BlenderWindow : Window
         _maxIterations = maxIterations;
         _result        = new BlenderRundownResult();
         _cts           = new CancellationTokenSource();
+        _tickCount     = 0;
 
         _deviceType = ((DeviceCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "CPU").Trim();
         _result.DeviceType = _deviceType;
@@ -266,6 +278,12 @@ public partial class BlenderWindow : Window
 
         _stopwatch.Restart();
         _clockTimer.Start();
+
+        if (rundown)
+        {
+            PreventSleep();
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        }
 
         var iteration = 0;
         IProgress<string> progress = new Progress<string>(msg =>
@@ -338,6 +356,11 @@ public partial class BlenderWindow : Window
         finally
         {
             BenchmarkGuard.End();
+            if (rundown)
+            {
+                SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+                AllowSleep();
+            }
             _stopwatch.Stop();
             _clockTimer.Stop();
             _cts = null;
@@ -353,12 +376,39 @@ public partial class BlenderWindow : Window
 
     private void TickClock()
     {
-        RunElapsed.Text = _stopwatch.Elapsed.ToString(@"h\:mm\:ss");
+        var elapsed = _stopwatch.Elapsed;
+        RunElapsed.Text = elapsed.ToString(@"h\:mm\:ss");
         var power = WinForms.SystemInformation.PowerStatus;
         RunBattery.Text = $"{(int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100)}%";
+
+        // Persist elapsed time every 60 s so it's preserved if the machine dies mid-iteration
+        if (_rundown && _result != null && ++_tickCount % 60 == 0)
+        {
+            _result.TotalElapsedSeconds = (int)elapsed.TotalSeconds;
+            _result.Save();
+        }
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        // Stop if AC power is plugged in — charger connected means the rundown is over.
+        // Do NOT stop on Suspend: let the machine hibernate at critical battery and
+        // naturally die; cancelling here would end the test prematurely.
+        if (e.Mode == PowerModes.StatusChange)
+        {
+            var power = WinForms.SystemInformation.PowerStatus;
+            if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
+                Dispatcher.BeginInvoke(() => _cts?.Cancel());
+        }
+    }
+
+    private static void PreventSleep() =>
+        SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED);
+
+    private static void AllowSleep() =>
+        SetThreadExecutionState(ES_CONTINUOUS);
 
     // ── Results ───────────────────────────────────────────────────────────
 
@@ -383,21 +433,22 @@ public partial class BlenderWindow : Window
             var first = result.Entries[0].CompositeScore;
             var last  = result.Entries[^1].CompositeScore;
             var avg   = result.Entries.Average(e => e.CompositeScore);
-            var drop  = first > 0 ? (first - last) * 100.0 / first : 0;
             ResFirst.Text = $"{first:N0}";
             ResLast.Text  = $"{last:N0}";
             ResAvg.Text   = $"{avg:N0}";
-            ResDrop.Text  = $"{drop:F1}%";
-            ResDrop.Foreground = drop > 20
-                ? new SolidColorBrush(Color.FromRgb(0xF8, 0x71, 0x71))
-                : drop > 10
-                    ? new SolidColorBrush(Color.FromRgb(0xFB, 0xBF, 0x24))
-                    : new SolidColorBrush(Color.FromRgb(0x4A, 0xDE, 0x80));
+
+            if (_rundown)
+            {
+                ResStartBat.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
+                ResEndBat.Text   = $"{result.Entries[^1].BatteryPct}%";
+                ResEndedAt.Text  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
+            }
         }
 
-        TrialsRow.Visibility = isTrials ? Visibility.Visible : Visibility.Collapsed;
-        StatsRow.Visibility  = !isTrials && result.Entries.Count > 1
-            ? Visibility.Visible : Visibility.Collapsed;
+        var showStats = !isTrials && result.Entries.Count > 1;
+        TrialsRow.Visibility  = isTrials  ? Visibility.Visible : Visibility.Collapsed;
+        StatsRow.Visibility   = showStats ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showStats && _rundown ? Visibility.Visible : Visibility.Collapsed;
 
         // Scene spm breakdown: average across all iterations
         if (result.Entries.Count > 0)
@@ -409,7 +460,8 @@ public partial class BlenderWindow : Window
         }
 
         ShowPanel(ResultsPanel);
-        SaveHistory(result, isTrials, (int)_stopwatch.Elapsed.TotalSeconds);
+        if (result == _result)   // only log new runs, not "View Previous"
+            SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }
 

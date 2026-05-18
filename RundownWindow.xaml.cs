@@ -35,6 +35,7 @@ public partial class RundownWindow : Window
     private DateTime                  _startTime;
     private RundownResult?            _result;
     private RundownResult?            _previousResult;
+    private int                       _tickCount;
 
     public RundownWindow()
     {
@@ -109,6 +110,7 @@ public partial class RundownWindow : Window
         _result    = new RundownResult { BenchmarkType = stress ? "Stress" : gpu ? "GPU" : "CPU" };
         _startTime = DateTime.Now;
         _cts       = new CancellationTokenSource();
+        _tickCount = 0;
 
         var typeLabel = stress ? "CPU + GPU Stress" : gpu ? "GPU" : "CPU";
         var verLabel  = info.InstalledVersion != null ? $"Geekbench {info.InstalledVersion}" : "Geekbench";
@@ -194,12 +196,26 @@ public partial class RundownWindow : Window
 
         var power = WinForms.SystemInformation.PowerStatus;
         RunBatteryText.Text = $"{(int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100)}%";
+
+        // Persist elapsed time every 60 s so it's preserved if the machine dies mid-iteration
+        if (_result != null && ++_tickCount % 60 == 0)
+        {
+            _result.TotalElapsedSeconds = (int)elapsed.TotalSeconds;
+            _result.Save();
+        }
     }
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
-        if (e.Mode == PowerModes.Suspend)
-            Dispatcher.BeginInvoke(StopRundown);
+        // Stop if AC power is plugged in — charger connected means the rundown is over.
+        // Do NOT stop on Suspend: let the machine hibernate at critical battery and
+        // naturally die; cancelling here would end the test prematurely.
+        if (e.Mode == PowerModes.StatusChange)
+        {
+            var power = WinForms.SystemInformation.PowerStatus;
+            if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
+                Dispatcher.BeginInvoke(StopRundown);
+        }
     }
 
     private void StopRundown()

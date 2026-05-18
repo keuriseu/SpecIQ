@@ -37,6 +37,7 @@ public partial class SpeedometerWindow : Window
     private SpeedometerResult?        _previousResult;
     private bool                      _rundown;
     private int                       _maxIterations; // 0 = unlimited
+    private int                       _tickCount;
 
     public SpeedometerWindow()
     {
@@ -126,6 +127,7 @@ public partial class SpeedometerWindow : Window
         _maxIterations = maxIterations;
         _result        = new SpeedometerResult { Browser = _browser.ToString() };
         _cts           = new CancellationTokenSource();
+        _tickCount     = 0;
 
         var browserLabel = _browser.ToString();
         RunSubtitleText.Text = maxIterations == 3 ? $"{browserLabel}  ·  3 Trials"
@@ -306,17 +308,32 @@ public partial class SpeedometerWindow : Window
 
     private void TickClock()
     {
-        RunElapsed.Text = _stopwatch.Elapsed.ToString(@"h\:mm\:ss");
+        var elapsed = _stopwatch.Elapsed;
+        RunElapsed.Text = elapsed.ToString(@"h\:mm\:ss");
         var power = WinForms.SystemInformation.PowerStatus;
         RunBattery.Text = $"{(int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100)}%";
+
+        // Persist elapsed time every 60 s so it's preserved if the machine dies mid-iteration
+        if (_rundown && _result != null && ++_tickCount % 60 == 0)
+        {
+            _result.TotalElapsedSeconds = (int)elapsed.TotalSeconds;
+            _result.Save();
+        }
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e) => _cts?.Cancel();
 
     private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
     {
-        if (e.Mode == PowerModes.Suspend)
-            Dispatcher.BeginInvoke(() => _cts?.Cancel());
+        // Stop if AC power is plugged in — charger connected means the rundown is over.
+        // Do NOT stop on Suspend: let the machine hibernate at critical battery and
+        // naturally die; cancelling here would end the test prematurely.
+        if (e.Mode == PowerModes.StatusChange)
+        {
+            var power = WinForms.SystemInformation.PowerStatus;
+            if (power.PowerLineStatus == WinForms.PowerLineStatus.Online)
+                Dispatcher.BeginInvoke(() => _cts?.Cancel());
+        }
     }
 
     private static void PreventSleep() =>

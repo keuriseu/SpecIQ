@@ -328,6 +328,7 @@ public static class GeekbenchService
             }
 
             result.Entries.Add(entry);
+            result.TotalElapsedSeconds = (int)(DateTime.Now - startTime).TotalSeconds;
             result.Save();
 
             progress.Report(new RundownProgress(iteration, "", entry));

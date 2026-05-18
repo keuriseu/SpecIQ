@@ -344,10 +344,10 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Stats row: First / Last / Avg / Drop (single + rundown) -->
-                <Grid x:Name="StatsRow" Visibility="Collapsed" Margin="0,0,0,12">
+                <!-- Stats row: First / Last / Avg (single + rundown) -->
+                <Grid x:Name="StatsRow" Visibility="Collapsed" Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="FIRST" Style="{StaticResource Lbl}"/>
@@ -361,9 +361,24 @@
                         <TextBlock Text="AVG"   Style="{StaticResource Lbl}"/>
                         <TextBlock x:Name="ResAvg" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="3">
-                        <TextBlock Text="DROP"  Style="{StaticResource Lbl}"/>
-                        <TextBlock x:Name="ResDrop" Style="{StaticResource SmallVal}"/>
+                </Grid>
+
+                <!-- Battery + end time row (rundown only) -->
+                <Grid x:Name="BatteryRow" Visibility="Collapsed" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="START BAT" Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResStartBat" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="END BAT"   Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResEndBat" Style="{StaticResource SmallVal}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="ENDED AT"  Style="{StaticResource Lbl}"/>
+                        <TextBlock x:Name="ResEndedAt" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
                 </Grid>
 
