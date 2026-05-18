@@ -404,15 +404,27 @@ internal static class ProcyonService
             using var initCts    = new CancellationTokenSource(TimeSpan.FromMinutes(3));
             using var linkedInit = CancellationTokenSource.CreateLinkedTokenSource(ct, initCts.Token);
 
+            int pollCount = 0;
             while (!linkedInit.Token.IsCancellationRequested)
             {
                 await Task.Delay(2_000, linkedInit.Token);
+                pollCount++;
 
                 if (javawPid == null)
+                {
                     javawPid = FindChorosJavawPid();
+                    if (javawPid != null)
+                        progress.Report($"javaw.exe found (PID {javawPid}). Looking for WebSocket port...");
+                    else if (pollCount % 5 == 0)
+                        progress.Report($"Waiting for Procyon to start... ({pollCount * 2}s elapsed)");
+                }
 
                 if (javawPid != null && wsPort == null)
+                {
                     wsPort = await FindListeningPortAsync(javawPid.Value, linkedInit.Token);
+                    if (wsPort == null && pollCount % 5 == 0)
+                        progress.Report($"javaw PID {javawPid} found but not yet listening on a port... ({pollCount * 2}s)");
+                }
 
                 if (wsPort != null) break;
             }
@@ -420,7 +432,7 @@ internal static class ProcyonService
             if (javawPid == null)
                 throw new Exception("Procyon failed to start (javaw.exe / choros.jar not found after 3 minutes).");
             if (wsPort == null)
-                throw new Exception("Procyon WebSocket port not found after 3 minutes.");
+                throw new Exception($"Procyon WebSocket port not found after 3 minutes (javaw PID {javawPid}).");
 
             // Brief extra wait for the UI to finish loading its benchmark list
             await Task.Delay(4_000, ct);

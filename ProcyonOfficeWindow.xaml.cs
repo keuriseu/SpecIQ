@@ -137,11 +137,19 @@ public partial class ProcyonOfficeWindow : Window
             SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
 
-        IProgress<string> progress = new Progress<string>(msg =>
+        AppLog.Trim("procyon_office");
+        using var log = new AppLog("procyon_office");
+        log.Write($"Mode: {(rundown ? "Rundown" : maxIterations == 3 ? "3 Trials" : "Single")}");
+        log.Write($"Exe: {_exePath}");
+        log.Write($"Battery: {_result.StartBatteryPct}%");
+        log.Write("");
+
+        IProgress<string> rawProgress = new Progress<string>(msg =>
         {
             RunLogText.Text += msg + "\n";
             RunLogScroll.ScrollToBottom();
         });
+        IProgress<string> progress = log.Tee(rawProgress);
 
         BenchmarkGuard.Begin();
         try
@@ -152,6 +160,7 @@ public partial class ProcyonOfficeWindow : Window
                 attempts++;
                 var iteration = _result.Entries.Count + 1;
                 RunIterText.Text = $"Iteration {iteration}";
+                log.Write($"--- Iteration {iteration} start ---");
 
                 var power = WinForms.SystemInformation.PowerStatus;
                 if (power.BatteryLifePercent is >= 0 and <= 0.03f) break;
@@ -165,6 +174,7 @@ public partial class ProcyonOfficeWindow : Window
                 catch (Exception ex)
                 {
                     // Log and continue — don't let a transient failure kill the rundown
+                    log.Write(ex, $"Iteration {iteration}");
                     progress.Report($"[Iteration {iteration} failed: {ex.Message}]");
                     continue;
                 }
@@ -185,6 +195,7 @@ public partial class ProcyonOfficeWindow : Window
                     batteryPct, elapsed);
                 _result.Entries.Add(entry);
                 _result.Save();
+                log.Write($"Iteration {iteration} score: {r.OverallScore}  Word:{r.WordScore} Excel:{r.ExcelScore} PPT:{r.PowerPointScore} Outlook:{r.OutlookScore}  Battery:{batteryPct}%");
 
                 RunScore.Text   = $"{_result.Entries.Average(e => e.Score):N0}";
                 RunBattery.Text = $"{batteryPct}%";
@@ -193,9 +204,10 @@ public partial class ProcyonOfficeWindow : Window
             } while (!_cts.Token.IsCancellationRequested &&
                      (rundown || (_maxIterations > 0 && attempts < _maxIterations)));
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) { log.Write("Run cancelled."); }
         catch (Exception ex)
         {
+            log.Write(ex, "StartAsync");
             RunLogText.Text += $"\nError: {ex.Message}";
         }
         finally
