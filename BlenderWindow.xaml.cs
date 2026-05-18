@@ -252,9 +252,10 @@ public partial class BlenderWindow : Window
 
         _rundown       = rundown;
         _maxIterations = maxIterations;
-        _result        = new BlenderRundownResult();
-        _cts           = new CancellationTokenSource();
-        _tickCount     = 0;
+        _result           = new BlenderRundownResult();
+        _result.IsRundown = rundown;
+        _cts              = new CancellationTokenSource();
+        _tickCount        = 0;
 
         _deviceType = ((DeviceCombo.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "CPU").Trim();
         _result.DeviceType = _deviceType;
@@ -437,7 +438,7 @@ public partial class BlenderWindow : Window
             ResLast.Text  = $"{last:N0}";
             ResAvg.Text   = $"{avg:N0}";
 
-            if (_rundown)
+            if (result.IsRundown)
             {
                 ResStartBat.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
                 ResEndBat.Text   = $"{result.Entries[^1].BatteryPct}%";
@@ -448,7 +449,7 @@ public partial class BlenderWindow : Window
         var showStats = !isTrials && result.Entries.Count > 1;
         TrialsRow.Visibility  = isTrials  ? Visibility.Visible : Visibility.Collapsed;
         StatsRow.Visibility   = showStats ? Visibility.Visible : Visibility.Collapsed;
-        BatteryRow.Visibility = showStats && _rundown ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showStats && result.IsRundown ? Visibility.Visible : Visibility.Collapsed;
 
         // Scene spm breakdown: average across all iterations
         if (result.Entries.Count > 0)
@@ -460,8 +461,7 @@ public partial class BlenderWindow : Window
         }
 
         ShowPanel(ResultsPanel);
-        if (result == _result)   // only log new runs, not "View Previous"
-            SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
+        SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }
 
@@ -484,9 +484,10 @@ public partial class BlenderWindow : Window
         var note = isTrials                  ? $"×3 trials avg  ·  {result.DeviceType}"
                  : result.Entries.Count == 1 ? $"Single run  ·  {result.DeviceType}"
                  : $"Rundown  ·  {result.IterationCount} iters  ·  {result.DeviceType}";
-        BenchmarkHistory.Append(new HistoryEntry
+        BenchmarkHistory.AppendIfNew(new HistoryEntry
         {
             Tool            = HistoryTool.Blender,
+            RunAt           = result.StartedAt,
             Note            = note,
             ScoreA          = avg,
             DurationSeconds = durationSeconds,

@@ -125,9 +125,10 @@ public partial class SpeedometerWindow : Window
     {
         _rundown       = rundown;
         _maxIterations = maxIterations;
-        _result        = new SpeedometerResult { Browser = _browser.ToString() };
-        _cts           = new CancellationTokenSource();
-        _tickCount     = 0;
+        _result           = new SpeedometerResult { Browser = _browser.ToString() };
+        _result.IsRundown = rundown;
+        _cts              = new CancellationTokenSource();
+        _tickCount        = 0;
 
         var browserLabel = _browser.ToString();
         RunSubtitleText.Text = maxIterations == 3 ? $"{browserLabel}  ·  3 Trials"
@@ -371,22 +372,20 @@ public partial class SpeedometerWindow : Window
             ResLast.Text  = $"{last:F1}";
             ResAvg.Text   = $"{avg:F1}";
 
-            if (_rundown)
+            if (result.IsRundown)
             {
-                var startBat = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
-                var endBat   = $"{result.Entries[^1].BatteryPct}%";
-                var endedAt  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
-                ResStartBat.Text  = startBat;
-                ResEndBat.Text    = endBat;
-                ResEndedAt.Text   = endedAt;
+                ResStartBat.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
+                ResEndBat.Text   = $"{result.Entries[^1].BatteryPct}%";
+                ResEndedAt.Text  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
             }
         }
 
         var showStats   = !isTrials && result.Entries.Count > 1;
         TrialsRow.Visibility  = isTrials   ? Visibility.Visible : Visibility.Collapsed;
         StatsRow.Visibility   = showStats  ? Visibility.Visible : Visibility.Collapsed;
-        BatteryRow.Visibility = showStats && _rundown ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showStats && result.IsRundown ? Visibility.Visible : Visibility.Collapsed;
         ShowPanel(ResultsPanel);
+        SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }
 
@@ -401,6 +400,23 @@ public partial class SpeedometerWindow : Window
         if (_result == null && _previousResult == null) return;
         Clipboard.SetText((_result ?? _previousResult)!.ExportText());
         AppHelpers.FlashButton((Button)sender);
+    }
+
+    private static void SaveHistory(SpeedometerResult result, bool isTrials, int durationSeconds)
+    {
+        if (result.Entries.Count == 0) return;
+        var avg  = result.Entries.Average(e => e.Score);
+        var note = isTrials                  ? $"×3 trials avg  ·  {result.Browser}"
+                 : result.Entries.Count == 1 ? $"Single run  ·  {result.Browser}"
+                 : $"Rundown  ·  {result.IterationCount} iters  ·  {result.Browser}";
+        BenchmarkHistory.AppendIfNew(new HistoryEntry
+        {
+            Tool            = HistoryTool.Speedometer,
+            RunAt           = result.StartedAt,
+            Note            = note,
+            ScoreA          = avg,
+            DurationSeconds = durationSeconds,
+        });
     }
 
     // ── Chart ─────────────────────────────────────────────────────────────

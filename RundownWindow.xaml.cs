@@ -267,10 +267,28 @@ public partial class RundownWindow : Window
         }
 
         ShowPanel(ResultsPanel);
+        SaveHistory(result, (int)result.TotalDuration.TotalSeconds);
 
         // Draw chart after layout
         Dispatcher.BeginInvoke(DispatcherPriority.Background,
             () => DrawChart(ResChart, result));
+    }
+
+    private static void SaveHistory(RundownResult result, int durationSeconds)
+    {
+        if (result.Entries.Count == 0) return;
+        var note = $"Rundown  ·  {result.BenchmarkType}  ·  {result.IterationCount} iters";
+        var avgSingle = result.Entries.Average(e => e.SingleScore);
+        var avgMulti  = result.Entries.Average(e => e.MultiScore);
+        BenchmarkHistory.AppendIfNew(new HistoryEntry
+        {
+            Tool            = HistoryTool.Geekbench6,
+            RunAt           = result.StartedAt,
+            Note            = note,
+            ScoreA          = avgSingle,
+            ScoreB          = avgMulti,
+            DurationSeconds = durationSeconds,
+        });
     }
 
     private void Export_Click(object sender, RoutedEventArgs e)

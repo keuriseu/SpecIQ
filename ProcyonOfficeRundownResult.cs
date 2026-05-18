@@ -19,6 +19,7 @@ public class ProcyonOfficeRundownResult
     public string MachineName     { get; set; } = Environment.MachineName;
     public string StartedAt       { get; set; } = DateTime.Now.ToString("o");
     public int    StartBatteryPct { get; set; } = -1;
+    public bool   IsRundown       { get; set; }
     public int    TotalElapsedSeconds { get; set; }
     public List<ProcyonOfficeEntry> Entries { get; set; } = [];
 

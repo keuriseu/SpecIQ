@@ -109,9 +109,10 @@ public partial class ProcyonOfficeWindow : Window
 
         _rundown       = rundown;
         _maxIterations = maxIterations;
-        _result        = new ProcyonOfficeRundownResult();
-        _cts           = new CancellationTokenSource();
-        _tickCount     = 0;
+        _result           = new ProcyonOfficeRundownResult();
+        _result.IsRundown = rundown;
+        _cts              = new CancellationTokenSource();
+        _tickCount        = 0;
 
         RunSubtitleText.Text = maxIterations == 3 ? "3 Trials"
                              : rundown            ? "Battery Rundown"
@@ -280,7 +281,7 @@ public partial class ProcyonOfficeWindow : Window
             ResLast.Text  = $"{last:N0}";
             ResAvg.Text   = $"{avg:N0}";
 
-            if (_rundown)
+            if (result.IsRundown)
             {
                 ResStartBat.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
                 ResEndBat.Text   = $"{result.Entries[^1].BatteryPct}%";
@@ -291,7 +292,7 @@ public partial class ProcyonOfficeWindow : Window
         var showStats = !isTrials && result.Entries.Count > 1;
         TrialsRow.Visibility  = isTrials  ? Visibility.Visible : Visibility.Collapsed;
         StatsRow.Visibility   = showStats ? Visibility.Visible : Visibility.Collapsed;
-        BatteryRow.Visibility = showStats && _rundown ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showStats && result.IsRundown ? Visibility.Visible : Visibility.Collapsed;
 
         // Sub-score breakdown: show average across all entries
         if (result.Entries.Count > 0)
@@ -304,8 +305,7 @@ public partial class ProcyonOfficeWindow : Window
         }
 
         ShowPanel(ResultsPanel);
-        if (result == _result)   // only log new runs, not "View Previous"
-            SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
+        SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
     }
 
@@ -322,9 +322,10 @@ public partial class ProcyonOfficeWindow : Window
         var note = isTrials                  ? "×3 trials avg"
                  : result.Entries.Count == 1 ? "Single run"
                  : $"Rundown  ·  {result.IterationCount} iters";
-        BenchmarkHistory.Append(new HistoryEntry
+        BenchmarkHistory.AppendIfNew(new HistoryEntry
         {
             Tool            = HistoryTool.ProcyonOffice,
+            RunAt           = result.StartedAt,
             Note            = note,
             ScoreA          = avg,
             DurationSeconds = durationSeconds,

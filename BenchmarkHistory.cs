@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace SpecIQ;
 
-public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV, ProcyonOffice, Blender }
+public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV, ProcyonOffice, Blender, Speedometer }
 
 public class HistoryEntry
 {
@@ -33,6 +33,26 @@ public static class BenchmarkHistory
         try
         {
             var entries = Load();
+            entries.Insert(0, entry);
+            if (entries.Count > MaxEntries)
+                entries = entries.Take(MaxEntries).ToList();
+            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(entries, AppHelpers.JsonOpts));
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Appends the entry only if no existing entry with the same Tool + RunAt exists.
+    /// Safe to call multiple times for the same run (e.g. on iteration completion and
+    /// again when "View Previous" is clicked after a reboot).
+    /// </summary>
+    public static void AppendIfNew(HistoryEntry entry)
+    {
+        try
+        {
+            var entries = Load();
+            if (entries.Any(e => e.Tool == entry.Tool && e.RunAt == entry.RunAt)) return;
             entries.Insert(0, entry);
             if (entries.Count > MaxEntries)
                 entries = entries.Take(MaxEntries).ToList();

@@ -20,6 +20,7 @@ public class BlenderRundownResult
     public string StartedAt       { get; set; } = DateTime.Now.ToString("o");
     public int    StartBatteryPct { get; set; } = -1;
     public string DeviceType      { get; set; } = "CPU";
+    public bool   IsRundown       { get; set; }
     public int    TotalElapsedSeconds { get; set; }
     public List<BlenderEntry> Entries { get; set; } = [];
 
