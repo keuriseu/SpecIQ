@@ -10,7 +10,7 @@
 
     <AssemblyName>SpecIQ</AssemblyName>
     <RootNamespace>SpecIQ</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
