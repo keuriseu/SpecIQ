@@ -202,6 +202,7 @@ public partial class SpeedometerWindow : Window
                 var entry = new SpeedometerEntry(iteration, score, batteryPct, elapsed);
                 _result.Entries.Add(entry);
                 _result.Save();
+                SaveHistory(_result, isTrials: false, (int)_stopwatch.Elapsed.TotalSeconds);
 
                 RunScore.Text = $"{_result.Entries.Average(e => e.Score):F1}";
                 RunBattery.Text = $"{batteryPct}%";
@@ -409,7 +410,7 @@ public partial class SpeedometerWindow : Window
         var note = isTrials                  ? $"×3 trials avg  ·  {result.Browser}"
                  : result.Entries.Count == 1 ? $"Single run  ·  {result.Browser}"
                  : $"Rundown  ·  {result.IterationCount} iters  ·  {result.Browser}";
-        BenchmarkHistory.AppendIfNew(new HistoryEntry
+        BenchmarkHistory.Upsert(new HistoryEntry
         {
             Tool            = HistoryTool.Speedometer,
             RunAt           = result.StartedAt,

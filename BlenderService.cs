@@ -136,77 +136,210 @@ public static class BlenderService
         var sceneArgs = string.Join(" ", scenes);
         var args      = $"benchmark --blender-version {version} --device-type {deviceType} --json {sceneArgs}";
 
-        var jsonAccum = new System.Text.StringBuilder();
+        // Capture the JSON array that the launcher emits after all scenes finish.
+        // It starts with a bare '[' line (or '{' for older single-object format),
+        // distinct from progress bars which start with "N / 100 [...]".
+        var jsonAccum    = new System.Text.StringBuilder();
+        bool collectJson = false;
+
         IProgress<string> inner = new Progress<string>(line =>
         {
             progress.Report(line);
-            if (line.TrimStart().StartsWith("{"))
+            var trimmed = line.Trim();
+            if (!collectJson && (trimmed == "[" || trimmed == "{" ||
+                                 (trimmed.StartsWith("{") && trimmed.EndsWith("}"))))
+                collectJson = true;
+            if (collectJson)
                 jsonAccum.AppendLine(line);
         });
 
-        var (fullOutput, _) = await RunStreamCaptureAsync(cli, args, inner, ct);
+        var (fullOutput, exitCode) = await RunStreamCaptureAsync(cli, args, inner, ct);
 
-        // Combine inline JSON accumulator with full output for best-effort parsing
+        progress.Report($"[benchmark exit code: {exitCode}]");
+
+        // Prefer the cleanly-captured JSON; fall back to the full mixed output.
         var jsonText = jsonAccum.Length > 0 ? jsonAccum.ToString() : fullOutput;
 
         var result = new BlenderRunResult { DeviceType = deviceType, Version = version };
         result.Scenes.AddRange(ParseJsonOutput(jsonText, scenes));
+
+        // If still no scores, dump the full output so it appears in the log
+        if (result.CompositeScore == 0)
+        {
+            progress.Report("[WARNING] No scores parsed. Full raw output:");
+            foreach (var line in fullOutput.Split('\n'))
+            {
+                var t = line.TrimEnd('\r');
+                if (!string.IsNullOrWhiteSpace(t))
+                    progress.Report("  " + t);
+            }
+        }
+
         return result;
     }
 
     // ── JSON output parsing ───────────────────────────────────────────────────
 
     // Blender benchmark CLI with --json emits one JSON object per scene line.
-    // Format (approx): {"scene":"monster","stats":{"samples_per_minute":1234.5,...},...}
+    // Supported formats:
+    //   {"scene":"monster","stats":{"samples_per_minute":1234.5,...},...}   (older launcher)
+    //   {"scene":"monster","result":{"samples_per_minute":1234.5,...},...}   (newer launcher)
+    //   {"scene":"monster","samples_per_minute":1234.5,...}                  (bare)
     private static IEnumerable<BlenderSceneResult> ParseJsonOutput(string output, string[] expectedScenes)
     {
         var found = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var line in output.Split('\n'))
+        // First pass: try parsing the entire output as a JSON array or object
+        // (launcher 3.x emits a pretty-printed array after all scenes complete)
+        TryParseJsonObject(output.Trim(), found);
+
+        // Second pass: line-by-line for single-line JSON objects (older launchers)
+        if (found.Count == 0)
         {
-            var trimmed = line.Trim();
-            if (!trimmed.StartsWith("{")) continue;
-            try
+            foreach (var line in output.Split('\n'))
             {
-                using var doc  = JsonDocument.Parse(trimmed);
-                var root       = doc.RootElement;
-
-                var sceneName  = TryGetString(root, "scene");
-                var spm        = TryGetSpm(root);
-
-                if (sceneName != null && spm > 0)
-                    found[sceneName] = spm;
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("{") && !trimmed.StartsWith("[")) continue;
+                TryParseJsonObject(trimmed, found);
             }
-            catch { }
         }
 
-        // Yield found scenes, then zeros for missing ones
+        // Third pass: extract multi-line JSON objects by bracket depth
+        if (found.Count == 0)
+        {
+            foreach (var json in ExtractJsonObjects(output))
+                TryParseJsonObject(json, found);
+        }
+
+        // Yield results; if exact name not found, try a contains-match
+        // (the CLI may use longer names like "Monster Lair" for the "monster" scene key)
         foreach (var name in expectedScenes)
         {
-            yield return new BlenderSceneResult(
-                name,
-                found.TryGetValue(name, out var s) ? s : 0);
+            double score = 0;
+            if (!found.TryGetValue(name, out score))
+            {
+                // Contains-match, case-insensitive, pick the first hit
+                foreach (var kv in found)
+                {
+                    if (kv.Key.Contains(name, StringComparison.OrdinalIgnoreCase) ||
+                        name.Contains(kv.Key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        score = kv.Value;
+                        break;
+                    }
+                }
+            }
+            yield return new BlenderSceneResult(name, score);
         }
     }
 
-    private static string? TryGetString(JsonElement el, string key)
+    private static void TryParseJsonObject(string json, Dictionary<string, double> found)
     {
-        if (el.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String)
-            return v.GetString();
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root      = doc.RootElement;
+
+            // If the root is an array (the launcher emits a JSON array after all scenes),
+            // recurse into each element.
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var el in root.EnumerateArray())
+                    TryParseElement(el, found);
+                return;
+            }
+
+            TryParseElement(root, found);
+        }
+        catch { }
+    }
+
+    private static void TryParseElement(JsonElement el, Dictionary<string, double> found)
+    {
+        var sceneName = TryGetSceneName(el);
+        var spm       = TryGetSpm(el);
+        if (sceneName != null && spm > 0)
+            found[sceneName] = spm;
+    }
+
+    // Extracts complete top-level JSON objects from a potentially mixed-content string.
+    private static IEnumerable<string> ExtractJsonObjects(string text)
+    {
+        var sb    = new System.Text.StringBuilder();
+        int depth = 0;
+        bool inStr = false;
+        bool escape = false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+
+            if (escape) { escape = false; sb.Append(c); continue; }
+            if (inStr)
+            {
+                if (c == '\\') { escape = true; sb.Append(c); continue; }
+                if (c == '"')  { inStr  = false; }
+                sb.Append(c);
+                continue;
+            }
+
+            if (c == '"')  { inStr = true;  sb.Append(c); continue; }
+            if (c == '{')
+            {
+                if (depth == 0) sb.Clear();
+                depth++;
+                sb.Append(c);
+            }
+            else if (c == '}')
+            {
+                sb.Append(c);
+                if (depth > 0 && --depth == 0)
+                    yield return sb.ToString();
+            }
+            else if (depth > 0)
+            {
+                sb.Append(c);
+            }
+        }
+    }
+
+    // Extracts the scene name from a result element. Handles two formats:
+    //   {"scene": "monster", ...}                        — older launcher (bare string)
+    //   {"scene": {"label": "monster", ...}, ...}        — launcher 3.x (nested object)
+    private static string? TryGetSceneName(JsonElement el)
+    {
+        if (!el.TryGetProperty("scene", out var scene)) return null;
+
+        if (scene.ValueKind == JsonValueKind.String)
+            return scene.GetString();
+
+        if (scene.ValueKind == JsonValueKind.Object &&
+            scene.TryGetProperty("label", out var label) &&
+            label.ValueKind == JsonValueKind.String)
+            return label.GetString();
+
         return null;
     }
 
     private static double TryGetSpm(JsonElement root)
     {
-        // Try root.stats.samples_per_minute
-        if (root.TryGetProperty("stats", out var stats))
-        {
-            if (stats.TryGetProperty("samples_per_minute", out var spm))
-                return spm.GetDouble();
-        }
-        // Try root.samples_per_minute directly
-        if (root.TryGetProperty("samples_per_minute", out var spm2))
+        // Try root.stats.samples_per_minute  (older launcher format)
+        if (root.TryGetProperty("stats", out var stats) &&
+            stats.TryGetProperty("samples_per_minute", out var spm1) &&
+            spm1.ValueKind == JsonValueKind.Number)
+            return spm1.GetDouble();
+
+        // Try root.result.samples_per_minute  (newer launcher format)
+        if (root.TryGetProperty("result", out var result) &&
+            result.TryGetProperty("samples_per_minute", out var spm2) &&
+            spm2.ValueKind == JsonValueKind.Number)
             return spm2.GetDouble();
+
+        // Try root.samples_per_minute directly
+        if (root.TryGetProperty("samples_per_minute", out var spm3) &&
+            spm3.ValueKind == JsonValueKind.Number)
+            return spm3.GetDouble();
+
         return 0;
     }
 

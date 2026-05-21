@@ -236,9 +236,11 @@ public partial class MainWindow : Window
     private void Launch_GBAI(object sender, RoutedEventArgs e)     { HideLauncher(); App().ShowGeekbenchAI(); }
     private void Launch_CB(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowCinebench();   }
     private void Launch_SP(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowSpeedometer(); }
-    private void Launch_Procyon(object sender, RoutedEventArgs e)        { HideLauncher(); App().ShowProcyon();       }
-    private void Launch_ProcyonOffice(object sender, RoutedEventArgs e) { HideLauncher(); App().ShowProcyonOffice(); }
+    private void Launch_Procyon(object sender, RoutedEventArgs e)             { HideLauncher(); App().ShowProcyon();             }
+    private void Launch_ProcyonOffice(object sender, RoutedEventArgs e)      { HideLauncher(); App().ShowProcyonOffice();      }
+    private void Launch_ProcyonEssentials(object sender, RoutedEventArgs e)  { HideLauncher(); App().ShowProcyonEssentials();  }
     private void Launch_Blender(object sender, RoutedEventArgs e)       { HideLauncher(); App().ShowBlender();       }
+    private void Launch_PugetBench(object sender, RoutedEventArgs e)   { HideLauncher(); App().ShowPugetBench();   }
     private void Launch_Suite(object sender, RoutedEventArgs e)           { HideLauncher(); App().ShowSuite();         }
     private void Launch_History(object sender, RoutedEventArgs e)        { HideLauncher(); App().ShowHistory();      }
     private void Launch_Snapshot(object sender, RoutedEventArgs e) { HideLauncher(); App().ShowSnapshot();    }

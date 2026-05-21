@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 
 namespace SpecIQ;
 
-public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV, ProcyonOffice, Blender, Speedometer }
+public enum HistoryTool { Geekbench6, GeekbenchAI, Cinebench, ProcyonCV, ProcyonOffice, ProcyonEssentials, Blender, Speedometer, PugetBench }
 
 public class HistoryEntry
 {
@@ -56,6 +56,32 @@ public static class BenchmarkHistory
             entries.Insert(0, entry);
             if (entries.Count > MaxEntries)
                 entries = entries.Take(MaxEntries).ToList();
+            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            File.WriteAllText(FilePath, JsonSerializer.Serialize(entries, AppHelpers.JsonOpts));
+        }
+        catch { }
+    }
+
+    /// <summary>
+    /// Inserts or replaces the entry with the same Tool + RunAt.
+    /// Use this for long-running benchmarks (e.g. rundowns) where the final score
+    /// grows over time — calling Upsert after each iteration keeps history current
+    /// even if the machine shuts down before the run completes normally.
+    /// </summary>
+    public static void Upsert(HistoryEntry entry)
+    {
+        try
+        {
+            var entries = Load();
+            var idx = entries.FindIndex(e => e.Tool == entry.Tool && e.RunAt == entry.RunAt);
+            if (idx >= 0)
+                entries[idx] = entry;       // update existing
+            else
+            {
+                entries.Insert(0, entry);   // new entry
+                if (entries.Count > MaxEntries)
+                    entries = entries.Take(MaxEntries).ToList();
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.WriteAllText(FilePath, JsonSerializer.Serialize(entries, AppHelpers.JsonOpts));
         }

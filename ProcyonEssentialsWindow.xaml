@@ -1,7 +1,7 @@
-﻿<Window x:Class="SpecIQ.ProcyonOfficeWindow"
+<Window x:Class="SpecIQ.ProcyonEssentialsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="SpecIQ — Procyon Office"
+        Title="SpecIQ — Procyon Essentials"
         WindowStyle="None"
         Background="#1A1A2E"
         WindowStartupLocation="CenterScreen"
@@ -14,7 +14,6 @@
         <WindowChrome CaptionHeight="0" ResizeBorderThickness="0"
                       GlassFrameThickness="0" UseAeroCaptionButtons="False"/>
     </WindowChrome.WindowChrome>
-
 
     <Window.Resources>
         <Style x:Key="Lbl" TargetType="TextBlock">
@@ -50,8 +49,8 @@
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="PROCYON" FontSize="11" FontWeight="Bold"
-                               Foreground="#10B981" FontFamily="Segoe UI"/>
-                    <TextBlock Text="  OFFICE PRODUCTIVITY" FontSize="11" FontWeight="Bold"
+                               Foreground="#F97316" FontFamily="Segoe UI"/>
+                    <TextBlock Text="  ESSENTIALS" FontSize="11" FontWeight="Bold"
                                Foreground="#94A3B8" FontFamily="Segoe UI"/>
                 </StackPanel>
                 <Button Grid.Column="1" Style="{StaticResource CloseBtn}" Click="Close_Click"/>
@@ -64,14 +63,14 @@
                  ══════════════════════════════════════════════════════════════ -->
             <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
 
-                <TextBlock Text="Microsoft Office workloads benchmark (Word, Excel, PowerPoint, Outlook)."
+                <TextBlock Text="PC Essentials benchmark (file operations, app launch, video call, browser workloads)."
                            Foreground="#70FFFFFF" FontSize="11" FontFamily="Segoe UI"
                            TextWrapping="Wrap" Margin="0,0,0,14"/>
 
                 <!-- Status -->
                 <Border Background="#0FFFFFFF" CornerRadius="6" Padding="12,8" Margin="0,0,0,14">
                     <StackPanel>
-                        <TextBlock Text="PROCYON OFFICE" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
+                        <TextBlock Text="PROCYON ESSENTIALS" Style="{StaticResource Lbl}" Margin="0,0,0,2"/>
                         <TextBlock x:Name="StatusText" Text="Checking…"
                                    FontSize="11" FontFamily="Segoe UI" Foreground="#CCFFFFFF"/>
                     </StackPanel>
@@ -82,7 +81,7 @@
                         Background="#0FFFFFFF" CornerRadius="6" Margin="0,0,0,14" Padding="12,10"
                         Cursor="Hand" MouseDown="ViewPrevious_Click">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="↩  " Foreground="#10B981" FontSize="11"/>
+                        <TextBlock Text="↩  " Foreground="#F97316" FontSize="11"/>
                         <StackPanel>
                             <TextBlock Text="PREVIOUS RESULT" Style="{StaticResource Lbl}"/>
                             <TextBlock x:Name="PreviousSummaryText"
@@ -97,17 +96,14 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/><ColumnDefinition Width="6"/>
                         <ColumnDefinition/><ColumnDefinition Width="6"/>
-                        <ColumnDefinition/><ColumnDefinition Width="6"/>
                         <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <Button x:Name="SingleBtn"  Grid.Column="0" Content="Single Run"
-                            Background="#059669" Style="{StaticResource Btn}" Click="StartSingle_Click"/>
+                            Background="#EA580C" Style="{StaticResource Btn}" Click="StartSingle_Click"/>
                     <Button x:Name="TrialsBtn"  Grid.Column="2" Content="3 Trials"
-                            Background="#059669" Style="{StaticResource Btn}" Click="StartTrials_Click"/>
-                    <Button x:Name="LoopsBtn"   Grid.Column="4" Content="5 Loops"
-                            Background="#059669" Style="{StaticResource Btn}" Click="StartLoops_Click"/>
-                    <Button x:Name="RundownBtn" Grid.Column="6" Content="Rundown"
-                            Background="#059669" Style="{StaticResource Btn}" Click="StartRundown_Click"/>
+                            Background="#EA580C" Style="{StaticResource Btn}" Click="StartTrials_Click"/>
+                    <Button x:Name="RundownBtn" Grid.Column="4" Content="Rundown"
+                            Background="#EA580C" Style="{StaticResource Btn}" Click="StartRundown_Click"/>
                 </Grid>
 
             </StackPanel>
@@ -128,7 +124,7 @@
                     <StackPanel Grid.Column="0">
                         <TextBlock Text="SCORE"   Style="{StaticResource Lbl}"/>
                         <TextBlock x:Name="RunScore" Text="—" Style="{StaticResource BigVal}"
-                                   Foreground="#10B981" FontSize="26"/>
+                                   Foreground="#F97316" FontSize="26"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" HorizontalAlignment="Center">
                         <TextBlock Text="BATTERY" Style="{StaticResource Lbl}"/>
@@ -142,27 +138,6 @@
 
                 <TextBlock x:Name="RunIterText" Text="Iteration 1"
                            FontSize="11" FontFamily="Segoe UI" Foreground="#94A3B8" Margin="0,0,0,8"/>
-
-                <!-- Workload indicators (5 Loops mode only) -->
-                <Border x:Name="WorkloadRow" Visibility="Collapsed" Margin="0,0,0,8">
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Border x:Name="WlExcel1"  Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="Excel 1" FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                        <Border x:Name="WlWord"    Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="Word"    FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                        <Border x:Name="WlExcel2"  Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="Excel 2" FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                        <Border x:Name="WlPPT"     Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="PPT"     FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                        <Border x:Name="WlOutlook" Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="Outlook" FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                    </StackPanel>
-                </Border>
 
                 <!-- Live mini-chart -->
                 <Canvas x:Name="RunChart" Height="80" Margin="0,0,0,8"
@@ -227,12 +202,12 @@
                             <TextBlock x:Name="ResTrial3" Style="{StaticResource SmallVal}"/>
                         </StackPanel>
                     </Grid>
-                    <Border Background="#0A10B981" CornerRadius="8" Padding="12,10">
+                    <Border Background="#0AF97316" CornerRadius="8" Padding="12,10">
                         <StackPanel HorizontalAlignment="Center">
                             <TextBlock Text="AVERAGE" Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
                             <TextBlock x:Name="ResTrialsAvg" FontSize="36" FontWeight="Light"
-                                       FontFamily="Segoe UI" Foreground="#10B981"
+                                       FontFamily="Segoe UI" Foreground="#F97316"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Border>
@@ -281,11 +256,12 @@
                            FontSize="11" FontFamily="Segoe UI" Foreground="#FFCC44"
                            TextWrapping="Wrap" Margin="0,-4,0,12"/>
 
-                <!-- Sub-score breakdown: Word | Excel | PowerPoint | Outlook -->
+                <!-- Sub-score breakdown: File | App Launch | Video Call | Tabs | Browser -->
                 <Border x:Name="SubScoresBorder" Visibility="Collapsed"
                         Background="#0AFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="1"/>
                             <ColumnDefinition/><ColumnDefinition Width="1"/>
                             <ColumnDefinition/><ColumnDefinition Width="1"/>
                             <ColumnDefinition/><ColumnDefinition Width="1"/>
@@ -294,28 +270,35 @@
                         <Border Grid.Column="1" Background="#15FFFFFF"/>
                         <Border Grid.Column="3" Background="#15FFFFFF"/>
                         <Border Grid.Column="5" Background="#15FFFFFF"/>
+                        <Border Grid.Column="7" Background="#15FFFFFF"/>
                         <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                            <TextBlock Text="WORD"       Style="{StaticResource Lbl}"
+                            <TextBlock Text="FILE"       Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="ResWord"  Text="—" Style="{StaticResource SmallVal}"
+                            <TextBlock x:Name="ResFile"  Text="—" Style="{StaticResource SmallVal}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                            <TextBlock Text="EXCEL"       Style="{StaticResource Lbl}"
+                            <TextBlock Text="APP LAUNCH" Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="ResExcel"  Text="—" Style="{StaticResource SmallVal}"
+                            <TextBlock x:Name="ResApp"   Text="—" Style="{StaticResource SmallVal}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="4" HorizontalAlignment="Center">
-                            <TextBlock Text="POWERPOINT" Style="{StaticResource Lbl}"
+                            <TextBlock Text="VIDEO CALL" Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="ResPPT"   Text="—" Style="{StaticResource SmallVal}"
+                            <TextBlock x:Name="ResVideo" Text="—" Style="{StaticResource SmallVal}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                         <StackPanel Grid.Column="6" HorizontalAlignment="Center">
-                            <TextBlock Text="OUTLOOK"     Style="{StaticResource Lbl}"
+                            <TextBlock Text="TAB SWITCH" Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="ResOutlook" Text="—" Style="{StaticResource SmallVal}"
+                            <TextBlock x:Name="ResTabs"  Text="—" Style="{StaticResource SmallVal}"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="8" HorizontalAlignment="Center">
+                            <TextBlock Text="BROWSER"     Style="{StaticResource Lbl}"
+                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                            <TextBlock x:Name="ResBrowser" Text="—" Style="{StaticResource SmallVal}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
@@ -328,61 +311,6 @@
                     </Grid.ColumnDefinitions>
                     <Button Grid.Column="0" x:Name="ExportBtn" Content="Export"
                             Background="#1E293B" Style="{StaticResource Btn}" Click="Export_Click"/>
-                    <Button Grid.Column="2" Content="Close"
-                            Background="#1E293B" Style="{StaticResource Btn}" Click="Close_Click"/>
-                </Grid>
-
-            </StackPanel>
-
-            <!-- ══════════════════════════════════════════════════════════════
-                 LOOPS RESULTS PANEL (5 Loops mode)
-                 ══════════════════════════════════════════════════════════════ -->
-            <StackPanel x:Name="LoopsResultsPanel" Visibility="Collapsed" Margin="20,16,20,20">
-
-                <TextBlock x:Name="LoopsMachine" FontSize="12" FontWeight="SemiBold"
-                           FontFamily="Segoe UI" Foreground="White" Margin="0,0,0,16"/>
-
-                <!-- Summary row: start bat / end bat / duration -->
-                <Grid Margin="0,0,0,14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0">
-                        <TextBlock Text="START BAT" Style="{StaticResource Lbl}"/>
-                        <TextBlock x:Name="LoopsStartBat" Style="{StaticResource SmallVal}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                        <TextBlock Text="END BAT"   Style="{StaticResource Lbl}"/>
-                        <TextBlock x:Name="LoopsEndBat" Style="{StaticResource SmallVal}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                        <TextBlock Text="DURATION"  Style="{StaticResource Lbl}"/>
-                        <TextBlock x:Name="LoopsDuration" Style="{StaticResource SmallVal}"/>
-                    </StackPanel>
-                </Grid>
-
-                <!-- Table header -->
-                <Grid Margin="0,0,0,6">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="LOOP"    Style="{StaticResource Lbl}"/>
-                    <TextBlock Grid.Column="1" Text="BATTERY" Style="{StaticResource Lbl}"/>
-                    <TextBlock Grid.Column="2" Text="ELAPSED" Style="{StaticResource Lbl}"/>
-                </Grid>
-
-                <!-- Table rows populated in code -->
-                <StackPanel x:Name="LoopsTable" Margin="0,0,0,16"/>
-
-                <!-- Action buttons -->
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" x:Name="LoopsExportBtn" Content="Export"
-                            Background="#1E293B" Style="{StaticResource Btn}" Click="LoopsExport_Click"/>
                     <Button Grid.Column="2" Content="Close"
                             Background="#1E293B" Style="{StaticResource Btn}" Click="Close_Click"/>
                 </Grid>

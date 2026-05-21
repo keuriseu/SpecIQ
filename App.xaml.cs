@@ -84,6 +84,10 @@ public partial class App : System.Windows.Application
         procyonOfficeItem.Click += (_, _) => ShowProcyonOffice();
         menu.Items.Add(procyonOfficeItem);
 
+        var procyonEssentialsItem = new WinForms.ToolStripMenuItem("Procyon Essentials…");
+        procyonEssentialsItem.Click += (_, _) => ShowProcyonEssentials();
+        menu.Items.Add(procyonEssentialsItem);
+
         var blenderItem = new WinForms.ToolStripMenuItem("Blender…");
         blenderItem.Click += (_, _) => ShowBlender();
         menu.Items.Add(blenderItem);
@@ -242,6 +246,32 @@ public partial class App : System.Windows.Application
         }
         _procyonOfficeWindow = new ProcyonOfficeWindow();
         _procyonOfficeWindow.Show();
+    }
+
+    private ProcyonEssentialsWindow? _procyonEssentialsWindow;
+
+    internal void ShowProcyonEssentials()
+    {
+        if (_procyonEssentialsWindow is { IsLoaded: true })
+        {
+            _procyonEssentialsWindow.Activate();
+            return;
+        }
+        _procyonEssentialsWindow = new ProcyonEssentialsWindow();
+        _procyonEssentialsWindow.Show();
+    }
+
+    private PugetBenchWindow? _pugetBenchWindow;
+
+    internal void ShowPugetBench()
+    {
+        if (_pugetBenchWindow is { IsLoaded: true })
+        {
+            _pugetBenchWindow.Activate();
+            return;
+        }
+        _pugetBenchWindow = new PugetBenchWindow();
+        _pugetBenchWindow.Show();
     }
 
     private BlenderWindow? _blenderWindow;

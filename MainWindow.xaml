@@ -456,19 +456,31 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
                 </Grid.ColumnDefinitions>
-                <Button Grid.Column="0" Content="Procyon AI CV"
+                <Grid.RowDefinitions>
+                    <RowDefinition/><RowDefinition Height="5"/><RowDefinition/>
+                </Grid.RowDefinitions>
+                <Button Grid.Row="0" Grid.Column="0" Content="Procyon AI CV"
                         Click="Launch_Procyon" Background="#0EA5E9"
                         Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
-                <Button Grid.Column="2" Content="Procyon Office"
+                <Button Grid.Row="0" Grid.Column="2" Content="Procyon Office"
                         Click="Launch_ProcyonOffice" Background="#10B981"
                         Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Content="Procyon Essentials"
+                        Click="Launch_ProcyonEssentials" Background="#F97316"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"
+                        HorizontalAlignment="Stretch"/>
             </Grid>
 
             <Grid Margin="0,0,0,4">
-                <Button Content="Blender"
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition/><ColumnDefinition Width="5"/><ColumnDefinition/>
+                </Grid.ColumnDefinitions>
+                <Button Grid.Column="0" Content="Blender"
                         Click="Launch_Blender" Background="#C2410C"
-                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"
-                        HorizontalAlignment="Stretch"/>
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
+                <Button Grid.Column="2" Content="PugetBench"
+                        Click="Launch_PugetBench" Background="#0891B2"
+                        Style="{StaticResource Btn}" Padding="8,6" FontSize="11"/>
             </Grid>
 
             <Border Height="1" Background="#10FFFFFF" Margin="0,10,0,10"/>

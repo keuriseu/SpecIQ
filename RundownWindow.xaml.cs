@@ -186,6 +186,10 @@ public partial class RundownWindow : Window
             RunScoreD.Text = entry.GpuVulkanScore > 0 ? $"{entry.GpuVulkanScore:N0}" : "—";
             Dispatcher.BeginInvoke(DispatcherPriority.Background,
                 () => DrawChart(RunChart, _result!));
+
+            // Keep history current after every iteration so a shutdown preserves the run
+            _result!.Save();
+            SaveHistory(_result!, (int)_stopwatch.Elapsed.TotalSeconds);
         }
     }
 
@@ -280,7 +284,7 @@ public partial class RundownWindow : Window
         var note = $"Rundown  ·  {result.BenchmarkType}  ·  {result.IterationCount} iters";
         var avgSingle = result.Entries.Average(e => e.SingleScore);
         var avgMulti  = result.Entries.Average(e => e.MultiScore);
-        BenchmarkHistory.AppendIfNew(new HistoryEntry
+        BenchmarkHistory.Upsert(new HistoryEntry
         {
             Tool            = HistoryTool.Geekbench6,
             RunAt           = result.StartedAt,
