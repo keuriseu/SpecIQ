@@ -419,11 +419,17 @@ internal static class ProcyonService
 
         ct.Register(() => { try { proc.Kill(entireProcessTree: true); } catch { } });
 
+        // Per-call CTS so both TailProcyonLogAsync tasks stop when RunOfficeAsync
+        // returns. Without this they accumulate across loop iterations (loop N starts
+        // 2 new tails but the previous N-1 iterations' tails keep running), causing
+        // every log line to appear 2×N times and the workload indicators to fire N times.
+        using var tailCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
         try
         {
             // ── Phase 1: wait for javaw WebSocket to open (~15–30 s) ─────────────
             progress.Report("Starting Procyon...");
-            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, ct);  // surface startup errors early
+            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, tailCts.Token);  // surface startup errors early
 
             int? javawPid = null;
             int? wsPort   = null;
@@ -512,7 +518,7 @@ internal static class ProcyonService
 
             // ── Phase 3: tail Procyon.log for progress; wait for result file ─────
             progress.Report("Office benchmark running...");
-            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, ct);
+            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, tailCts.Token);
 
             using var benchCts    = new CancellationTokenSource(TimeSpan.FromMinutes(45));
             using var linkedBench = CancellationTokenSource.CreateLinkedTokenSource(ct, benchCts.Token);
@@ -536,6 +542,7 @@ internal static class ProcyonService
         }
         finally
         {
+            tailCts.Cancel();   // stop log tails before returning so they don't accumulate
             try { proc.Kill(entireProcessTree: true); } catch { }
             // Also kill javaw explicitly — Procyon.exe detaches it as an orphan process
             // so it survives the proc.Kill above and blocks the next run attempt.
@@ -1140,11 +1147,13 @@ internal static class ProcyonService
 
         ct.Register(() => { try { proc.Kill(entireProcessTree: true); } catch { } });
 
+        using var tailCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
         try
         {
             // ── Phase 1: wait for javaw WebSocket ──────────────────────────────
             progress.Report("Starting Procyon...");
-            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, ct);
+            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, tailCts.Token);
 
             int? javawPid = null;
             int? wsPort   = null;
@@ -1208,7 +1217,7 @@ internal static class ProcyonService
 
             // ── Phase 3: tail log; wait for result file ────────────────────────
             progress.Report("Essentials benchmark running...");
-            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, ct);
+            _ = TailProcyonLogAsync(procyonLog, logOffset, progress, tailCts.Token);
 
             using var benchCts    = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             using var linkedBench = CancellationTokenSource.CreateLinkedTokenSource(ct, benchCts.Token);
@@ -1230,6 +1239,7 @@ internal static class ProcyonService
         }
         finally
         {
+            tailCts.Cancel();
             try { proc.Kill(entireProcessTree: true); } catch { }
             KillChorosJavaw(null);
             KillEssentialsProcesses(null);

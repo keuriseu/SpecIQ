@@ -7,7 +7,9 @@ namespace SpecIQ;
 public record OfficeLoopsEntry(
     int Iteration,
     int BatteryPct,
-    int ElapsedSeconds);
+    int ElapsedSeconds,
+    int LoopDurationSeconds,
+    int Score);
 
 public class OfficeLoopsResult
 {
@@ -41,10 +43,13 @@ public class OfficeLoopsResult
         sb.AppendLine($"Started: {DateTime.Parse(StartedAt):g}  ·  Start battery: {(StartBatteryPct >= 0 ? StartBatteryPct + "%" : "?")}");
         sb.AppendLine($"Completed: {IterationCount} / 5 loops  ·  Duration: {AppHelpers.FormatDuration(TotalDuration)}");
         sb.AppendLine();
-        sb.AppendLine($"{"Loop",-4}  {"Battery",-8}  Elapsed");
-        sb.AppendLine($"{"────",-4}  {"───────",-8}  ───────");
+        sb.AppendLine($"{"Loop",-4}  {"Run Time",-9}  {"Battery",-8}  {"Score",-7}  Elapsed");
+        sb.AppendLine($"{"────",-4}  {"────────",-9}  {"───────",-8}  {"─────",-7}  ───────");
         foreach (var e in Entries)
-            sb.AppendLine($"{e.Iteration,-4}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+        {
+            var scoreStr = e.Score > 0 ? e.Score.ToString("N0") : "—";
+            sb.AppendLine($"{e.Iteration,-4}  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.LoopDurationSeconds)),-9}  {e.BatteryPct,6}%  {scoreStr,-7}  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+        }
         var endBat = EndBatteryPct >= 0 ? EndBatteryPct
                    : Entries.Count > 0  ? Entries[^1].BatteryPct
                    : -1;

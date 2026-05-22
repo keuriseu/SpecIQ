@@ -26,6 +26,40 @@ public partial class ProcyonOfficeWindow : Window
     private const uint ES_SYSTEM_REQUIRED  = 0x00000001;
     private const uint ES_DISPLAY_REQUIRED = 0x00000002;
 
+    // PowerRequest API — a persistent handle-based sleep lock that does not rely on
+    // per-tick renewal.  Unlike SetThreadExecutionState (renewed via DispatcherTimer),
+    // this survives UI-thread throttling and prevents Modern Standby (S0ix) from
+    // suspending child processes such as javaw.exe / procyon.exe mid-benchmark.
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr PowerCreateRequest(ref REASON_CONTEXT context);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool PowerSetRequest(IntPtr powerRequest, PowerRequestType requestType);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool PowerClearRequest(IntPtr powerRequest, PowerRequestType requestType);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr handle);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct REASON_CONTEXT
+    {
+        public uint Version;
+        public uint Flags;
+        [MarshalAs(UnmanagedType.LPWStr)]
+        public string SimpleReasonString;
+    }
+
+    private enum PowerRequestType
+    {
+        PowerRequestDisplayRequired   = 0,
+        PowerRequestSystemRequired    = 1,
+        PowerRequestAwayModeRequired  = 2,
+        PowerRequestExecutionRequired = 3,
+    }
+
+    private const uint POWER_REQUEST_CONTEXT_VERSION       = 0;
+    private const uint POWER_REQUEST_CONTEXT_SIMPLE_STRING = 1;
+    private static readonly IntPtr INVALID_HANDLE_VALUE    = new(-1);
+
     // ── State ─────────────────────────────────────────────────────────────
 
     private string?                       _exePath;
@@ -183,7 +217,13 @@ public partial class ProcyonOfficeWindow : Window
                     const int CooldownSeconds = 30;
                     progress.Report($"[Waiting {CooldownSeconds} s for cleanup before iteration {iteration}...]");
                     log.Write($"Waiting {CooldownSeconds} s for cleanup before iteration {iteration}...");
-                    await Task.Delay(TimeSpan.FromSeconds(CooldownSeconds), _cts.Token);
+                    var cooldownEnd = _stopwatch.Elapsed + TimeSpan.FromSeconds(CooldownSeconds);
+                    while (!_cts.Token.IsCancellationRequested)
+                    {
+                        var remaining = cooldownEnd - _stopwatch.Elapsed;
+                        if (remaining <= TimeSpan.Zero) break;
+                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(500, remaining.TotalMilliseconds)), _cts.Token);
+                    }
                 }
 
                 ProcyonOfficeResult r;
@@ -525,6 +565,21 @@ public partial class ProcyonOfficeWindow : Window
         });
         IProgress<string> progress = log.Tee(rawProgress);
 
+        // Acquire a persistent OS-level execution power request for the run duration.
+        // This is belt-and-suspenders alongside the per-tick SetThreadExecutionState calls:
+        // if S0ix throttles the WPF UI thread so DispatcherTimer stops firing, the per-tick
+        // renewal stalls and the OS can suspend child processes. The handle below is
+        // kernel-owned and stays active until PowerClearRequest — no renewal needed.
+        var pwrCtx = new REASON_CONTEXT
+        {
+            Version            = POWER_REQUEST_CONTEXT_VERSION,
+            Flags              = POWER_REQUEST_CONTEXT_SIMPLE_STRING,
+            SimpleReasonString = "Procyon Office 5 Loops benchmark",
+        };
+        var pwrHandle = PowerCreateRequest(ref pwrCtx);
+        if (pwrHandle != INVALID_HANDLE_VALUE)
+            PowerSetRequest(pwrHandle, PowerRequestType.PowerRequestExecutionRequired);
+
         BenchmarkGuard.Begin();
         try
         {
@@ -538,12 +593,28 @@ public partial class ProcyonOfficeWindow : Window
                 {
                     const int CooldownSeconds = 30;
                     progress.Report($"[Waiting {CooldownSeconds} s for cleanup before loop {i}...]");
-                    await Task.Delay(TimeSpan.FromSeconds(CooldownSeconds), _cts.Token);
+                    // Use _stopwatch (QueryPerformanceCounter) as the time source rather than
+                    // Task.Delay alone. On Snapdragon with Modern Standby (S0ix), the thread-pool
+                    // timer that backs Task.Delay can be frozen for minutes, making the inter-loop
+                    // gap wildly inconsistent. _stopwatch continues ticking through S0ix, so the
+                    // loop exits as soon as real wall-clock time has elapsed — even if each
+                    // individual 500 ms poll was stretched by a sleep episode.
+                    var cooldownEnd = _stopwatch.Elapsed + TimeSpan.FromSeconds(CooldownSeconds);
+                    while (!_cts.Token.IsCancellationRequested)
+                    {
+                        var remaining = cooldownEnd - _stopwatch.Elapsed;
+                        if (remaining <= TimeSpan.Zero) break;
+                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(500, remaining.TotalMilliseconds)), _cts.Token);
+                    }
                 }
+
+                var loopStart = _stopwatch.Elapsed;
+                var score     = 0;
 
                 try
                 {
-                    await ProcyonService.RunOfficeAsync(_exePath, progress, _cts.Token);
+                    var r = await ProcyonService.RunOfficeAsync(_exePath, progress, _cts.Token);
+                    score = r.OverallScore;
                 }
                 catch (OperationCanceledException) when (_cts?.IsCancellationRequested == true) { throw; }
                 catch (Exception ex)
@@ -555,14 +626,43 @@ public partial class ProcyonOfficeWindow : Window
 
                 ResetWorkloadPills();
 
-                var power      = WinForms.SystemInformation.PowerStatus;
-                var batteryPct = (int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100);
-                var elapsed    = (int)_stopwatch.Elapsed.TotalSeconds;
-                _loopsResult.Entries.Add(new OfficeLoopsEntry(i, batteryPct, elapsed));
+                var power           = WinForms.SystemInformation.PowerStatus;
+                var batteryPct      = (int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100);
+                var elapsed         = (int)_stopwatch.Elapsed.TotalSeconds;
+                var loopDuration    = (int)(_stopwatch.Elapsed - loopStart).TotalSeconds;
+                _loopsResult.Entries.Add(new OfficeLoopsEntry(i, batteryPct, elapsed, loopDuration, score));
                 _loopsResult.Save();
-                log.Write($"Loop {i} complete — Battery: {batteryPct}%  Elapsed: {AppHelpers.FormatDuration(TimeSpan.FromSeconds(elapsed))}");
+                log.Write($"Loop {i} complete — Battery: {batteryPct}%  Score: {(score > 0 ? score.ToString("N0") : "—")}  Elapsed: {AppHelpers.FormatDuration(TimeSpan.FromSeconds(elapsed))}");
+
+                // Sanity-check this loop's wall-clock duration against the median of all
+                // previous loops. Warn loudly if the ratio is way off — it is far easier to
+                // catch S0ix process suspension or an early Procyon exit in the live log than
+                // by analysing thousands of log lines after the fact.
+                if (_loopsResult.Entries.Count >= 2)
+                {
+                    var prevDurations = _loopsResult.Entries
+                        .Take(_loopsResult.Entries.Count - 1)
+                        .Select(e => e.LoopDurationSeconds)
+                        .OrderBy(d => d)
+                        .ToList();
+                    var median = prevDurations.Count % 2 == 0
+                        ? (prevDurations[prevDurations.Count / 2 - 1] + prevDurations[prevDurations.Count / 2]) / 2.0
+                        : (double)prevDurations[prevDurations.Count / 2];
+                    var ratio = loopDuration / median;
+                    if (ratio > 1.5)
+                        progress.Report(
+                            $"⚠ Loop {i} took {AppHelpers.FormatDuration(TimeSpan.FromSeconds(loopDuration))} " +
+                            $"({ratio:F1}× median {AppHelpers.FormatDuration(TimeSpan.FromSeconds((int)median))}) — " +
+                            "Modern Standby may have suspended the benchmark process mid-run.");
+                    else if (ratio < 0.6)
+                        progress.Report(
+                            $"⚠ Loop {i} completed in {AppHelpers.FormatDuration(TimeSpan.FromSeconds(loopDuration))} " +
+                            $"({ratio:P0} of median) — Procyon may have exited early.");
+                }
 
                 RunBattery.Text = $"{batteryPct}%";
+                if (score > 0)
+                    RunScore.Text = score.ToString("N0");
             }
         }
         catch (OperationCanceledException)
@@ -590,6 +690,11 @@ public partial class ProcyonOfficeWindow : Window
             BenchmarkGuard.End();
             SystemEvents.PowerModeChanged -= OnPowerModeChanged;
             AllowSleep();
+            if (pwrHandle != INVALID_HANDLE_VALUE)
+            {
+                PowerClearRequest(pwrHandle, PowerRequestType.PowerRequestExecutionRequired);
+                CloseHandle(pwrHandle);
+            }
             _stopwatch.Stop();
             _clockTimer.Stop();
             _cts              = null;
@@ -658,25 +763,32 @@ public partial class ProcyonOfficeWindow : Window
         LoopsEndBat.Text   = endBat >= 0 ? $"{endBat}%" : "—";
         LoopsDuration.Text = AppHelpers.FormatDuration(result.TotalDuration);
 
+        var scoredEntries = result.Entries.Where(e => e.Score > 0).ToList();
+        LoopsAvgScore.Text = scoredEntries.Count > 0
+            ? $"{(int)scoredEntries.Average(e => e.Score):N0}"
+            : "—";
+
         LoopsTable.Children.Clear();
         foreach (var e in result.Entries)
             LoopsTable.Children.Add(MakeLoopsRow(
                 $"Loop {e.Iteration}",
+                AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.LoopDurationSeconds)),
                 $"{e.BatteryPct}%",
-                AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))));
+                AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds)),
+                e.Score > 0 ? e.Score.ToString("N0") : "—"));
 
         ShowPanel(LoopsResultsPanel);
     }
 
-    private static Grid MakeLoopsRow(string label, string battery, string elapsed)
+    private static Grid MakeLoopsRow(string label, string runTime, string battery, string elapsed, string score)
     {
         var g = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        for (int i = 0; i < 5; i++)
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-        var white = new SolidColorBrush(Colors.White);
-        void Cell(int col, string text)
+        var white  = new SolidColorBrush(Colors.White);
+        var accent = new SolidColorBrush(Color.FromRgb(0x10, 0xB9, 0x81));
+        void Cell(int col, string text, bool highlight = false)
         {
             var tb = new TextBlock
             {
@@ -684,14 +796,16 @@ public partial class ProcyonOfficeWindow : Window
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize   = 13,
                 FontWeight = FontWeights.SemiBold,
-                Foreground = white,
+                Foreground = highlight ? accent : white,
             };
             Grid.SetColumn(tb, col);
             g.Children.Add(tb);
         }
         Cell(0, label);
-        Cell(1, battery);
-        Cell(2, elapsed);
+        Cell(1, runTime);
+        Cell(2, battery);
+        Cell(3, elapsed);
+        Cell(4, score, highlight: score != "—");
         return g;
     }
 

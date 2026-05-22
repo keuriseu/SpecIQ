@@ -180,7 +180,13 @@ public partial class ProcyonEssentialsWindow : Window
                     const int CooldownSeconds = 30;
                     progress.Report($"[Waiting {CooldownSeconds} s for Procyon cleanup before iteration {iteration}...]");
                     log.Write($"Waiting {CooldownSeconds} s for cleanup before iteration {iteration}...");
-                    await Task.Delay(TimeSpan.FromSeconds(CooldownSeconds), _cts.Token);
+                    var cooldownEnd = _stopwatch.Elapsed + TimeSpan.FromSeconds(CooldownSeconds);
+                    while (!_cts.Token.IsCancellationRequested)
+                    {
+                        var remaining = cooldownEnd - _stopwatch.Elapsed;
+                        if (remaining <= TimeSpan.Zero) break;
+                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(500, remaining.TotalMilliseconds)), _cts.Token);
+                    }
                 }
 
                 var power = WinForms.SystemInformation.PowerStatus;
