@@ -395,7 +395,21 @@ internal static class ProcyonService
 
         // Kill any orphaned javaw and Office apps from a previous attempt.
         KillChorosJavaw(progress);
-        KillOfficeSuiteProcesses(progress);
+        var killedOffice = KillOfficeSuiteProcesses(progress);
+
+        // Wait up to 5 s for each killed Office process to fully exit so its COM server
+        // has time to deregister before Procyon starts. Without this wait, the COM
+        // infrastructure can still be mid-shutdown when Procyon tries to acquire Word/Excel,
+        // causing RPC_E_CALL_FAILED (0x800706BE) on the very first COM call of the next loop.
+        if (killedOffice.Count > 0)
+        {
+            foreach (var p in killedOffice)
+            {
+                try   { await p.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(5), ct); }
+                catch { }
+                finally { p.Dispose(); }
+            }
+        }
 
         // Delete stale .tempresult files — a failed OpenCL run from a previous session
         // causes Procyon to enter an error-recovery loop on next launch and never open
@@ -556,7 +570,8 @@ internal static class ProcyonService
             KillChorosJavaw(null);
             // Kill Office apps and the Procyon starter/cleanup process so they don't
             // accumulate across iterations and cause COM-automation failures or slow starts.
-            KillOfficeSuiteProcesses(null);
+            foreach (var p in KillOfficeSuiteProcesses(null))
+                try { p.Dispose(); } catch { }
         }
     }
 
@@ -574,10 +589,13 @@ internal static class ProcyonService
 
     // Kill Office apps + Procyon's own starter/cleanup exe between iterations.
     // Stale Office processes from the previous run can cause COM-automation failures
-    // (Range.Select → 0x800A03EC) when Procyon tries to reopen the same app, and
-    // the Procyon starter/cleanup process delays javaw startup on subsequent runs.
-    internal static void KillOfficeSuiteProcesses(IProgress<string>? progress)
+    // (Range.Select → 0x800A03EC, RPC_E_CALL_FAILED → 0x800706BE) when Procyon tries
+    // to reopen the same app; the starter/cleanup process delays javaw startup too.
+    // Returns all successfully killed Process objects so the caller can wait for exit.
+    internal static List<Process> KillOfficeSuiteProcesses(IProgress<string>? progress)
     {
+        var killed = new List<Process>();
+
         // Process name (no extension) → display name for the log
         var targets = new (string Name, string Label)[]
         {
@@ -596,10 +614,15 @@ internal static class ProcyonService
                 if (procs.Length == 0) continue;
                 progress?.Report($"Killing {label} ({procs.Length} process{(procs.Length > 1 ? "es" : "")})...");
                 foreach (var p in procs)
-                    try { p.Kill(entireProcessTree: true); } catch { }
+                {
+                    try   { p.Kill(entireProcessTree: true); killed.Add(p); }
+                    catch { p.Dispose(); }
+                }
             }
             catch { }
         }
+
+        return killed;
     }
 
     // Scans the .procyon-result ZIP for a JSON entry with a "detailedError" field and
@@ -952,13 +975,15 @@ internal static class ProcyonService
                     var line = await sr.ReadLineAsync(ct);
                     if (line == null) continue;
 
-                    // Warn once if Office is unlicensed — helps diagnose COM failures
+                    // Note OOB_GRACE once — Procyon surfaces this as a licensing status but it
+                    // is commonly reported even on activated Office installs and is not reliably
+                    // predictive of benchmark failures (loops still complete and score normally).
                     if (!licenceWarned &&
                         line.Contains("OOB_GRACE", StringComparison.OrdinalIgnoreCase))
                     {
                         licenceWarned = true;
-                        progress.Report("WARNING: Office is not activated (OOB_GRACE). " +
-                            "Excel workloads may fail. Please activate Microsoft 365 on this machine.");
+                        progress.Report("Note: Procyon reports Office licensing status OOB_GRACE. " +
+                            "If Office is not activated, some workloads may fail.");
                     }
 
                     // Capture the last Procyon error for richer diagnostics when no score is found.
