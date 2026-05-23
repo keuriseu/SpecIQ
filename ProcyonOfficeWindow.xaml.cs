@@ -565,11 +565,18 @@ public partial class ProcyonOfficeWindow : Window
         });
         IProgress<string> progress = log.Tee(rawProgress);
 
-        // Acquire a persistent OS-level execution power request for the run duration.
-        // This is belt-and-suspenders alongside the per-tick SetThreadExecutionState calls:
-        // if S0ix throttles the WPF UI thread so DispatcherTimer stops firing, the per-tick
-        // renewal stalls and the OS can suspend child processes. The handle below is
-        // kernel-owned and stays active until PowerClearRequest — no renewal needed.
+        // Acquire persistent OS-level power requests for the entire run duration.
+        //
+        // Two requests are needed and serve different purposes:
+        //   SystemRequired  — prevents the system from entering any sleep/CS state.
+        //                     Without this, ARM/Snapdragon Connected Standby can freeze
+        //                     ALL processes (including javaw.exe) when the display turns
+        //                     off, causing benchmark loops to stall for 20-45 minutes.
+        //   ExecutionRequired — prevents PLM from suspending or terminating THIS process
+        //                     (SpecIQ), as a secondary safeguard.
+        //
+        // Both are kernel-owned and stay active until PowerClearRequest, so they survive
+        // even if the WPF UI thread is throttled and DispatcherTimer stops firing.
         var pwrCtx = new REASON_CONTEXT
         {
             Version            = POWER_REQUEST_CONTEXT_VERSION,
@@ -578,7 +585,10 @@ public partial class ProcyonOfficeWindow : Window
         };
         var pwrHandle = PowerCreateRequest(ref pwrCtx);
         if (pwrHandle != INVALID_HANDLE_VALUE)
+        {
+            PowerSetRequest(pwrHandle, PowerRequestType.PowerRequestSystemRequired);
             PowerSetRequest(pwrHandle, PowerRequestType.PowerRequestExecutionRequired);
+        }
 
         BenchmarkGuard.Begin();
         try
@@ -692,6 +702,7 @@ public partial class ProcyonOfficeWindow : Window
             AllowSleep();
             if (pwrHandle != INVALID_HANDLE_VALUE)
             {
+                PowerClearRequest(pwrHandle, PowerRequestType.PowerRequestSystemRequired);
                 PowerClearRequest(pwrHandle, PowerRequestType.PowerRequestExecutionRequired);
                 CloseHandle(pwrHandle);
             }
