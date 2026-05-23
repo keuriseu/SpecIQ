@@ -523,7 +523,7 @@ internal static class ProcyonService
             using var benchCts    = new CancellationTokenSource(TimeSpan.FromMinutes(45));
             using var linkedBench = CancellationTokenSource.CreateLinkedTokenSource(ct, benchCts.Token);
 
-            var resultPath = await WaitForProcyonResultAsync(procyonLog, logOffset, progress, linkedBench.Token);
+            var (resultPath, procyonError) = await WaitForProcyonResultAsync(procyonLog, logOffset, progress, linkedBench.Token);
 
             if (resultPath == null)
                 throw new Exception("Procyon Office benchmark timed out after 45 minutes without producing a result.");
@@ -536,7 +536,14 @@ internal static class ProcyonService
             var result = ParseProcyonResultZip(resultPath);
 
             if (result.OverallScore == 0)
-                throw new Exception(BuildProcyonErrorMessage(resultPath));
+            {
+                // Prefer the Procyon log error (always available) over the ZIP JSON error
+                // (rarely present in the result file).
+                var msg = !string.IsNullOrEmpty(procyonError)
+                    ? $"Procyon benchmark error: {procyonError}"
+                    : BuildProcyonErrorMessage(resultPath);
+                throw new Exception(msg);
+            }
 
             return result;
         }
@@ -921,12 +928,17 @@ internal static class ProcyonService
     // ── Helper: watch Procyon.log for the autosave result path ───────────────
     // Procyon writes: "Writtenfile is (OK|ERROR, C:\...\procyon-autosave-xxx.procyon-result)"
     // Also detect licence warnings (OOB_GRACE) so we can surface a helpful message.
+    // Also captures the last BenchmarkRunError message for callers to use when no score is found.
+    //
+    // Returns (null, null) on timeout/cancellation; Task.Delay is caught explicitly so the
+    // per-benchmark benchCts timeout doesn't leak a raw TaskCanceledException to callers.
 
-    private static async Task<string?> WaitForProcyonResultAsync(
+    private static async Task<(string? path, string? benchmarkError)> WaitForProcyonResultAsync(
         string logPath, long startOffset, IProgress<string> progress, CancellationToken ct)
     {
-        long offset        = startOffset;
-        bool licenceWarned = false;
+        long   offset        = startOffset;
+        bool   licenceWarned = false;
+        string? benchmarkError = null;
 
         while (!ct.IsCancellationRequested)
         {
@@ -949,6 +961,13 @@ internal static class ProcyonService
                             "Excel workloads may fail. Please activate Microsoft 365 on this machine.");
                     }
 
+                    // Capture the last Procyon error for richer diagnostics when no score is found.
+                    // The result ZIP rarely contains a parseable JSON error; the log always does.
+                    var errMatch = Regex.Match(line,
+                        @"BenchmarkRunError\{status=ERROR, message=(.+?)\}");
+                    if (errMatch.Success)
+                        benchmarkError = errMatch.Groups[1].Value.Trim();
+
                     // Match both OK and ERROR — on ERROR Procyon still writes a result file
                     // with whatever partial scores it collected before the failure.
                     var m = Regex.Match(line,
@@ -960,15 +979,18 @@ internal static class ProcyonService
                         if (status == "ERROR")
                             progress.Report($"Procyon reported a benchmark error. " +
                                 "Attempting to parse partial results from the result file...");
-                        if (File.Exists(path)) return path;
+                        if (File.Exists(path)) return (path, benchmarkError);
                     }
                 }
                 offset = fs.Position;
             }
             catch { }
-            await Task.Delay(1_000, ct);
+            // Catch cancellation explicitly so the benchCts timeout doesn't leak a raw
+            // TaskCanceledException — callers check for null and throw a clearer message.
+            try { await Task.Delay(1_000, ct); }
+            catch (OperationCanceledException) { return (null, null); }
         }
-        return null;
+        return (null, null);
     }
 
     // ── Helper: extract scores from a .procyon-result ZIP ────────────────────
@@ -1222,7 +1244,7 @@ internal static class ProcyonService
             using var benchCts    = new CancellationTokenSource(TimeSpan.FromMinutes(30));
             using var linkedBench = CancellationTokenSource.CreateLinkedTokenSource(ct, benchCts.Token);
 
-            var resultPath = await WaitForProcyonResultAsync(procyonLog, logOffset, progress, linkedBench.Token);
+            var (resultPath, _) = await WaitForProcyonResultAsync(procyonLog, logOffset, progress, linkedBench.Token);
 
             if (resultPath == null)
                 throw new Exception("Procyon Essentials benchmark timed out after 30 minutes without producing a result.");
