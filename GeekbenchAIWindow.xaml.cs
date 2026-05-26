@@ -180,11 +180,11 @@ public partial class GeekbenchAIWindow : Window
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
-        ScrollChangedEventHandler scrollHandler = (_, e) =>
+        void scrollHandler(object _, ScrollChangedEventArgs e)
         {
             if (e.ExtentHeightChange == 0)
                 _logScrollLocked = LogScroll.VerticalOffset < LogScroll.ScrollableHeight - 2;
-        };
+        }
         LogScroll.ScrollChanged += scrollHandler;
 
         var results = new List<AIBenchmarkResult>();

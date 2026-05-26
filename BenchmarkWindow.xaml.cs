@@ -147,11 +147,11 @@ public partial class BenchmarkWindow : Window
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
-        ScrollChangedEventHandler scrollHandler = (_, e) =>
+        void scrollHandler(object _, System.Windows.Controls.ScrollChangedEventArgs e)
         {
             if (e.ExtentHeightChange == 0) // user scroll, not content change
                 _logScrollLocked = LogScroll.VerticalOffset < LogScroll.ScrollableHeight - 2;
-        };
+        }
         LogScroll.ScrollChanged += scrollHandler;
 
         var results = new List<BenchmarkResult>();
