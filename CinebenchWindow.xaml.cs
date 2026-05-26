@@ -217,7 +217,7 @@ public partial class CinebenchWindow : Window
         {
             BenchmarkGuard.End();
             _dotTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
     }
 

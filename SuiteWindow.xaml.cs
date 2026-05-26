@@ -326,7 +326,7 @@ public partial class SuiteWindow : Window
             BenchmarkGuard.End();
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
 
         _result.Save();

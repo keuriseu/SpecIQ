@@ -131,8 +131,8 @@ public static class GeekbenchService
 
             progress.Report((100, "Installing…"));
 
-            var psi  = new ProcessStartInfo(tempFile, "/S") { UseShellExecute = true, Verb = "runas" };
-            var proc = Process.Start(psi) ?? throw new InvalidOperationException("Installer did not start.");
+            var psi        = new ProcessStartInfo(tempFile, "/S") { UseShellExecute = true, Verb = "runas" };
+            using var proc = Process.Start(psi) ?? throw new InvalidOperationException("Installer did not start.");
             await proc.WaitForExitAsync(ct);
 
             if (proc.ExitCode != 0)

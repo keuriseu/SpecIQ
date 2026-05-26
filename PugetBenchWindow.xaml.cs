@@ -148,7 +148,7 @@ public partial class PugetBenchWindow : Window
         {
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
 
         if (_result is { Tests.Count: > 0 })

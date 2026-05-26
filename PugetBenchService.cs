@@ -114,7 +114,8 @@ public static partial class PugetBenchService
         long logOffset = File.Exists(LogFile) ? new FileInfo(LogFile).Length : 0;
 
         // Launch or bring to front.
-        var existing = Process.GetProcessesByName("PugetBench for Creators").FirstOrDefault();
+        var allExisting = Process.GetProcessesByName("PugetBench for Creators");
+        var existing    = allExisting.FirstOrDefault();
         if (existing != null)
         {
             if (existing.MainWindowHandle != nint.Zero)
@@ -126,6 +127,7 @@ public static partial class PugetBenchService
             Process.Start(new ProcessStartInfo(launcherExe) { UseShellExecute = true });
             progress.Report("PugetBench for Creators launched.");
         }
+        foreach (var p in allExisting) p.Dispose();
 
         progress.Report("Waiting — select Photoshop and click Run Benchmark in PugetBench.");
 

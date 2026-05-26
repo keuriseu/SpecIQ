@@ -373,7 +373,7 @@ public partial class BlenderWindow : Window
             }
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
             _log?.Dispose();
             _log = null;
         }

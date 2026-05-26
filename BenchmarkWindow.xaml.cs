@@ -102,7 +102,7 @@ public partial class BenchmarkWindow : Window
         }
         catch (OperationCanceledException) { ShowPanel(ReadyPanel); }
         catch (Exception ex) { InstallStatusText.Text = $"Error: {ex.Message}"; }
-        finally { _cts = null; }
+        finally { _cts?.Dispose(); _cts = null; }
     }
 
     // ── Run ───────────────────────────────────────────────────────────────
@@ -147,11 +147,12 @@ public partial class BenchmarkWindow : Window
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
-        LogScroll.ScrollChanged += (_, e) =>
+        ScrollChangedEventHandler scrollHandler = (_, e) =>
         {
             if (e.ExtentHeightChange == 0) // user scroll, not content change
                 _logScrollLocked = LogScroll.VerticalOffset < LogScroll.ScrollableHeight - 2;
         };
+        LogScroll.ScrollChanged += scrollHandler;
 
         var results = new List<BenchmarkResult>();
         BenchmarkGuard.Begin();
@@ -211,9 +212,10 @@ public partial class BenchmarkWindow : Window
         }
         finally
         {
+            LogScroll.ScrollChanged -= scrollHandler;
             BenchmarkGuard.End();
             _dotTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
     }
 

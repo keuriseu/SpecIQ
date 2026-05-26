@@ -153,7 +153,7 @@ public partial class RundownWindow : Window
             _stopwatch.Stop();
             _clockTimer.Stop();
             AllowSleep();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
 
         if (_result.Entries.Count > 0)

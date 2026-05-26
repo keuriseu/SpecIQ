@@ -333,7 +333,7 @@ public partial class ProcyonOfficeWindow : Window
             }
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
 
         if (_result.Entries.Count > 0)
@@ -708,7 +708,7 @@ public partial class ProcyonOfficeWindow : Window
             }
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts              = null;
+            _cts?.Dispose(); _cts = null;
             _isLoops5         = false;
             WorkloadRow.Visibility = Visibility.Collapsed;
             ResetWorkloadPills();

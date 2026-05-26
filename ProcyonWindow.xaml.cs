@@ -186,7 +186,7 @@ public partial class ProcyonWindow : Window
         {
             BenchmarkGuard.End();
             _dotTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
     }
 

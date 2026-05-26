@@ -299,7 +299,7 @@ public partial class ProcyonEssentialsWindow : Window
             }
             _stopwatch.Stop();
             _clockTimer.Stop();
-            _cts = null;
+            _cts?.Dispose(); _cts = null;
         }
 
         if (_result.Entries.Count > 0)
