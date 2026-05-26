@@ -216,6 +216,10 @@ public static class SpeedometerService
         finally
         {
             try { proc.Kill(entireProcessTree: true); } catch { }
+            // Wait briefly for the process tree to fully exit so child processes (GPU, crashpad)
+            // release their file locks on profileDir before we try to delete it.
+            try { proc.WaitForExit(3_000); } catch { }
+            proc.Dispose();
             try { Directory.Delete(profileDir, recursive: true); } catch { }
         }
     }

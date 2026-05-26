@@ -227,6 +227,7 @@ public partial class SpeedometerWindow : Window
             }
             _stopwatch.Stop();
             _clockTimer.Stop();
+            _cts?.Dispose();
             _cts = null;
         }
 
@@ -296,12 +297,20 @@ public partial class SpeedometerWindow : Window
             using var reg = ct.Register(() => tcs.TrySetCanceled());
             var score = await tcs.Task.WaitAsync(TimeSpan.FromMinutes(30), ct);
 
-            await Dispatcher.InvokeAsync(() => hostWin?.Close());
+            await Dispatcher.InvokeAsync(() =>
+            {
+                try { webView?.Dispose(); } catch { }  // releases CoreWebView2 + all event handlers
+                try { hostWin?.Close();   } catch { }
+            });
             return score;
         }
         catch
         {
-            await Dispatcher.InvokeAsync(() => { try { hostWin?.Close(); } catch { } });
+            await Dispatcher.InvokeAsync(() =>
+            {
+                try { webView?.Dispose(); } catch { }
+                try { hostWin?.Close();   } catch { }
+            });
             throw;
         }
     }
