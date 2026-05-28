@@ -49,6 +49,10 @@ public partial class SpeedometerWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         // Disable unavailable browsers
         if (SpeedometerService.FindBrowserExe(SpeedometerBrowser.Edge) == null)
         {
