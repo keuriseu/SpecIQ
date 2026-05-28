@@ -25,7 +25,13 @@ public partial class BenchmarkWindow : Window
         _dotTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _dotTimer.Tick += (_, _) => AnimateDots();
 
-        Loaded += async (_, _) => await CheckVersionAsync();
+        Loaded += async (_, _) =>
+        {
+            var s = SpecIQSettings.UiScale;
+            UiScaleTransform.ScaleX = s;
+            UiScaleTransform.ScaleY = s;
+            await CheckVersionAsync();
+        };
     }
 
     // ── Window chrome ─────────────────────────────────────────────────────

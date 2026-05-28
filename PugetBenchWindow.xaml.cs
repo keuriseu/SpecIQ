@@ -33,6 +33,10 @@ public partial class PugetBenchWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         _launcherExe = PugetBenchService.FindInstalled();
         var psExe    = PugetBenchService.FindPhotoshop();
         var assets   = PugetBenchService.AreAssetsReady();

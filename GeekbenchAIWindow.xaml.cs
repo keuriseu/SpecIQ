@@ -31,7 +31,13 @@ public partial class GeekbenchAIWindow : Window
         _dotTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _dotTimer.Tick += (_, _) => AnimateDots();
 
-        Loaded += (_, _) => CheckAsync();
+        Loaded += (_, _) =>
+        {
+            var s = SpecIQSettings.UiScale;
+            UiScaleTransform.ScaleX = s;
+            UiScaleTransform.ScaleY = s;
+            CheckAsync();
+        };
     }
 
     // ── Window chrome ─────────────────────────────────────────────────────

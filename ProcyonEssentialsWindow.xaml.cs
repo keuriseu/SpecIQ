@@ -60,6 +60,10 @@ public partial class ProcyonEssentialsWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         _exePath = ProcyonService.FindEssentialsInstalled();
 
         if (_exePath == null)

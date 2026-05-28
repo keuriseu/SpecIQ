@@ -86,6 +86,10 @@ public partial class ProcyonOfficeWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         _exePath = ProcyonService.FindOfficeInstalled();
 
         if (_exePath == null)

@@ -53,6 +53,10 @@ public partial class BlenderWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         _cli = BlenderService.FindCli();
 
         if (_cli == null)

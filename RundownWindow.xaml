@@ -54,7 +54,10 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#EE1A1A2E" CornerRadius="14" Width="400">
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="400" x:Name="RootBorder">
+        <Border.LayoutTransform>
+            <ScaleTransform x:Name="UiScaleTransform" ScaleX="1" ScaleY="1"/>
+        </Border.LayoutTransform>
 
         <StackPanel>
 

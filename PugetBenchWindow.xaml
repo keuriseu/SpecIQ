@@ -1,4 +1,4 @@
-<Window x:Class="SpecIQ.PugetBenchWindow"
+﻿<Window x:Class="SpecIQ.PugetBenchWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="SpecIQ — PugetBench"
@@ -37,7 +37,10 @@
         </Style>
     </Window.Resources>
 
-    <Border Background="#EE1A1A2E" CornerRadius="14" Width="480">
+    <Border Background="#EE1A1A2E" CornerRadius="14" Width="480" x:Name="RootBorder">
+        <Border.LayoutTransform>
+            <ScaleTransform x:Name="UiScaleTransform" ScaleX="1" ScaleY="1"/>
+        </Border.LayoutTransform>
         <StackPanel>
 
             <!-- ── Title bar ── -->

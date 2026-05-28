@@ -26,7 +26,13 @@ public partial class CinebenchWindow : Window
         _dotTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _dotTimer.Tick += (_, _) => AnimateDots();
 
-        Loaded += (_, _) => Initialise();
+        Loaded += (_, _) =>
+        {
+            var s = SpecIQSettings.UiScale;
+            UiScaleTransform.ScaleX = s;
+            UiScaleTransform.ScaleY = s;
+            Initialise();
+        };
     }
 
     // ── Window chrome ─────────────────────────────────────────────────────

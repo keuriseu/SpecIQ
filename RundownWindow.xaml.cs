@@ -49,6 +49,10 @@ public partial class RundownWindow : Window
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
+        var s = SpecIQSettings.UiScale;
+        UiScaleTransform.ScaleX = s;
+        UiScaleTransform.ScaleY = s;
+
         _previousResult = RundownResult.Load();
         if (_previousResult?.Entries.Count > 0)
         {

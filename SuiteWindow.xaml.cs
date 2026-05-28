@@ -73,7 +73,13 @@ public partial class SuiteWindow : Window
         InitializeComponent();
         _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _clockTimer.Tick += (_, _) => RunElapsed.Text = _stopwatch.Elapsed.ToString(@"h\:mm\:ss");
-        Loaded += (_, _) => _ = DiscoverAsync();
+        Loaded += (_, _) =>
+        {
+            var s = SpecIQSettings.UiScale;
+            UiScaleTransform.ScaleX = s;
+            UiScaleTransform.ScaleY = s;
+            _ = DiscoverAsync();
+        };
     }
 
     private void TitleBar_MouseDown(object sender, MouseButtonEventArgs e)
