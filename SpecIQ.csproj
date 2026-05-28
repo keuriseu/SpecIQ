@@ -10,7 +10,7 @@
 
     <AssemblyName>SpecIQ</AssemblyName>
     <RootNamespace>SpecIQ</RootNamespace>
-    <Version>1.1.6</Version>
+    <Version>1.1.7</Version>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Suppress SDK-generated AssemblyInfo; the WPF temp project generates its own
          copy which conflicts when both are compiled into the same assembly. -->
