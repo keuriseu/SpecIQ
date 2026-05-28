@@ -898,7 +898,6 @@ internal static class ProcyonService
                 "\"OFFICE_PRODUCTIVITY_WORD_DEFAULT\"," +
                 "\"OFFICE_PRODUCTIVITY_EXCEL2_DEFAULT\"," +
                 "\"OFFICE_PRODUCTIVITY_POWERPOINT_DEFAULT\"," +
-                "\"OFFICE_PRODUCTIVITY_OUTLOOK_DEFAULT\"," +
                 "\"OFFICE_PRODUCTIVITY_END_DEFAULT\"]," +
               "\"settings\":{}," +
               "\"currentUiViews\":[\"MY_SUITE\"]}}";

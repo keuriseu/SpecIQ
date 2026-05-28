@@ -288,11 +288,11 @@ public partial class ProcyonOfficeWindow : Window
 
                 var entry = new ProcyonOfficeEntry(
                     iteration, r.OverallScore,
-                    r.WordScore, r.ExcelScore, r.PowerPointScore, r.OutlookScore,
+                    r.WordScore, r.ExcelScore, r.PowerPointScore, OutlookScore: 0,
                     batteryPct, elapsed);
                 _result.Entries.Add(entry);
                 _result.Save();
-                log.Write($"Iteration {iteration} score: {r.OverallScore}  Word:{r.WordScore} Excel:{r.ExcelScore} PPT:{r.PowerPointScore} Outlook:{r.OutlookScore}  Battery:{batteryPct}%");
+                log.Write($"Iteration {iteration} score: {r.OverallScore}  Word:{r.WordScore} Excel:{r.ExcelScore} PPT:{r.PowerPointScore}  Battery:{batteryPct}%");
 
                 // Keep history current after every iteration so the entry survives
                 // even if the machine shuts down before the run completes normally.
@@ -468,10 +468,9 @@ public partial class ProcyonOfficeWindow : Window
         // Sub-score breakdown: show average across all entries
         if (result.Entries.Count > 0)
         {
-            ResWord.Text    = $"{(int)result.Entries.Average(e => e.WordScore):N0}";
-            ResExcel.Text   = $"{(int)result.Entries.Average(e => e.ExcelScore):N0}";
-            ResPPT.Text     = $"{(int)result.Entries.Average(e => e.PowerPointScore):N0}";
-            ResOutlook.Text = $"{(int)result.Entries.Average(e => e.OutlookScore):N0}";
+            ResWord.Text  = $"{(int)result.Entries.Average(e => e.WordScore):N0}";
+            ResExcel.Text = $"{(int)result.Entries.Average(e => e.ExcelScore):N0}";
+            ResPPT.Text   = $"{(int)result.Entries.Average(e => e.PowerPointScore):N0}";
             SubScoresBorder.Visibility = Visibility.Visible;
         }
 
@@ -745,7 +744,6 @@ public partial class ProcyonOfficeWindow : Window
         else if (msg.EndsWith("Word",       StringComparison.OrdinalIgnoreCase)) SetWorkloadPill(WlWord,    active: true);
         else if (msg.EndsWith("Excel2",     StringComparison.OrdinalIgnoreCase)) SetWorkloadPill(WlExcel2,  active: true);
         else if (msg.EndsWith("PowerPoint", StringComparison.OrdinalIgnoreCase)) SetWorkloadPill(WlPPT,     active: true);
-        else if (msg.EndsWith("Outlook",    StringComparison.OrdinalIgnoreCase)) SetWorkloadPill(WlOutlook, active: true);
     }
 
     private static void SetWorkloadPill(Border pill, bool active)
@@ -761,7 +759,7 @@ public partial class ProcyonOfficeWindow : Window
 
     private void ResetWorkloadPills()
     {
-        foreach (var pill in new[] { WlExcel1, WlWord, WlExcel2, WlPPT, WlOutlook })
+        foreach (var pill in new[] { WlExcel1, WlWord, WlExcel2, WlPPT })
             SetWorkloadPill(pill, active: false);
     }
 

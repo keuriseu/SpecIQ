@@ -63,10 +63,10 @@ public class ProcyonOfficeRundownResult
         sb.AppendLine($"Started: {DateTime.Parse(StartedAt):g}  ·  Start battery: {(StartBatteryPct >= 0 ? StartBatteryPct + "%" : "?")}");
         sb.AppendLine($"Iterations: {IterationCount}  ·  Duration: {AppHelpers.FormatDuration(TotalDuration)}");
         sb.AppendLine();
-        sb.AppendLine($"{"Iter",-4}  {"Score",-7}  {"Word",-7}  {"Excel",-7}  {"PPT",-7}  {"Outlook",-7}  Battery  Elapsed");
-        sb.AppendLine($"{"────",-4}  {"───────",-7}  {"───────",-7}  {"───────",-7}  {"───────",-7}  {"───────",-7}  ───────  ───────");
+        sb.AppendLine($"{"Iter",-4}  {"Score",-7}  {"Word",-7}  {"Excel",-7}  {"PPT",-7}  Battery  Elapsed");
+        sb.AppendLine($"{"────",-4}  {"───────",-7}  {"───────",-7}  {"───────",-7}  {"───────",-7}  ───────  ───────");
         foreach (var e in Entries)
-            sb.AppendLine($"{e.Iteration,-4}  {e.Score,-7:N0}  {e.WordScore,-7:N0}  {e.ExcelScore,-7:N0}  {e.PowerPointScore,-7:N0}  {e.OutlookScore,-7:N0}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
+            sb.AppendLine($"{e.Iteration,-4}  {e.Score,-7:N0}  {e.WordScore,-7:N0}  {e.ExcelScore,-7:N0}  {e.PowerPointScore,-7:N0}  {e.BatteryPct,6}%  {AppHelpers.FormatDuration(TimeSpan.FromSeconds(e.ElapsedSeconds))}");
         if (Entries.Count > 1)
         {
             var scores  = Entries.Select(e => e.Score).ToList();

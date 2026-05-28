@@ -67,7 +67,7 @@
                  ══════════════════════════════════════════════════════════════ -->
             <StackPanel x:Name="ConfigPanel" Margin="20,16,20,20">
 
-                <TextBlock Text="Microsoft Office workloads benchmark (Word, Excel, PowerPoint, Outlook)."
+                <TextBlock Text="Microsoft Office workloads benchmark (Word, Excel, PowerPoint)."
                            Foreground="#70FFFFFF" FontSize="11" FontFamily="Segoe UI"
                            TextWrapping="Wrap" Margin="0,0,0,14"/>
 
@@ -160,9 +160,6 @@
                         </Border>
                         <Border x:Name="WlPPT"     Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
                             <TextBlock Text="PPT"     FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
-                        </Border>
-                        <Border x:Name="WlOutlook" Background="#15FFFFFF" CornerRadius="10" Padding="8,3" Margin="2,0">
-                            <TextBlock Text="Outlook" FontSize="10" FontFamily="Segoe UI" Foreground="#80FFFFFF"/>
                         </Border>
                     </StackPanel>
                 </Border>
@@ -284,19 +281,17 @@
                            FontSize="11" FontFamily="Segoe UI" Foreground="#FFCC44"
                            TextWrapping="Wrap" Margin="0,-4,0,12"/>
 
-                <!-- Sub-score breakdown: Word | Excel | PowerPoint | Outlook -->
+                <!-- Sub-score breakdown: Word | Excel | PowerPoint -->
                 <Border x:Name="SubScoresBorder" Visibility="Collapsed"
                         Background="#0AFFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/><ColumnDefinition Width="1"/>
                             <ColumnDefinition/><ColumnDefinition Width="1"/>
-                            <ColumnDefinition/><ColumnDefinition Width="1"/>
                             <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
                         <Border Grid.Column="1" Background="#15FFFFFF"/>
                         <Border Grid.Column="3" Background="#15FFFFFF"/>
-                        <Border Grid.Column="5" Background="#15FFFFFF"/>
                         <StackPanel Grid.Column="0" HorizontalAlignment="Center">
                             <TextBlock Text="WORD"       Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
@@ -313,12 +308,6 @@
                             <TextBlock Text="POWERPOINT" Style="{StaticResource Lbl}"
                                        HorizontalAlignment="Center" Margin="0,0,0,2"/>
                             <TextBlock x:Name="ResPPT"   Text="—" Style="{StaticResource SmallVal}"
-                                       HorizontalAlignment="Center"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="6" HorizontalAlignment="Center">
-                            <TextBlock Text="OUTLOOK"     Style="{StaticResource Lbl}"
-                                       HorizontalAlignment="Center" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="ResOutlook" Text="—" Style="{StaticResource SmallVal}"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>
                     </Grid>
