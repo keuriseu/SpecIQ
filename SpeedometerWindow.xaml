@@ -100,6 +100,9 @@
                     <Button Grid.Column="4" Content="Rundown"
                             Background="#2563EB" Style="{StaticResource Btn}" Click="StartRundown_Click"/>
                 </Grid>
+                <Button Content="⚡  300 Iterations  ·  battery tracked"
+                        Background="#D97706" Style="{StaticResource Btn}"
+                        Click="Start300Iters_Click" Margin="0,6,0,0"/>
 
                 <!-- Previous result -->
                 <Border x:Name="PreviousResultsBorder" Visibility="Collapsed"
@@ -249,7 +252,7 @@
                         <TextBlock x:Name="ResEndBat" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="ENDED AT"  Style="{StaticResource Label}"/>
+                        <TextBlock x:Name="ResBatLabel3" Text="ENDED AT" Style="{StaticResource Label}"/>
                         <TextBlock x:Name="ResEndedAt" Style="{StaticResource SmallVal}"/>
                     </StackPanel>
                 </Grid>

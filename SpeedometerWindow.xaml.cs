@@ -36,6 +36,7 @@ public partial class SpeedometerWindow : Window
     private SpeedometerResult?        _result;
     private SpeedometerResult?        _previousResult;
     private bool                      _rundown;
+    private bool                      _trackBattery;
     private int                       _maxIterations; // 0 = unlimited
     private int                       _tickCount;
 
@@ -114,30 +115,36 @@ public partial class SpeedometerWindow : Window
 
     // ── Start ─────────────────────────────────────────────────────────────
 
-    private void StartSingle_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false, maxIterations: 1);
-    private void StartTrials_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false, maxIterations: 3);
-    private void StartRundown_Click(object sender, RoutedEventArgs e) => _ = StartAsync(rundown: true,  maxIterations: 0);
+    private void StartSingle_Click(object sender, RoutedEventArgs e)    => _ = StartAsync(rundown: false, maxIterations: 1);
+    private void StartTrials_Click(object sender, RoutedEventArgs e)    => _ = StartAsync(rundown: false, maxIterations: 3);
+    private void StartRundown_Click(object sender, RoutedEventArgs e)   => _ = StartAsync(rundown: true,  maxIterations: 0);
+    private void Start300Iters_Click(object sender, RoutedEventArgs e)  => _ = StartAsync(rundown: false, maxIterations: 300, trackBattery: true);
     private void ViewPrevious_Click(object sender, MouseButtonEventArgs e)
     {
         if (_previousResult == null) return;
-        // Restore trials mode flag from saved result count so the display is correct
-        _maxIterations = _previousResult.Entries.Count == 3 ? 3 : 0;
+        _maxIterations = _previousResult.Entries.Count == 3 ? 3
+                       : _previousResult.IsStamina          ? 300
+                       :                                      0;
+        _trackBattery = _previousResult.IsStamina;
         ShowResults(_previousResult);
     }
 
-    private async Task StartAsync(bool rundown, int maxIterations)
+    private async Task StartAsync(bool rundown, int maxIterations, bool trackBattery = false)
     {
         _rundown       = rundown;
+        _trackBattery  = trackBattery;
         _maxIterations = maxIterations;
         _result           = new SpeedometerResult { Browser = _browser.ToString() };
         _result.IsRundown = rundown;
+        _result.IsStamina = trackBattery;
         _cts              = new CancellationTokenSource();
         _tickCount        = 0;
 
         var browserLabel = _browser.ToString();
-        RunSubtitleText.Text = maxIterations == 3 ? $"{browserLabel}  ·  3 Trials"
-                             : rundown            ? $"{browserLabel}  ·  Battery Rundown"
-                                                  : $"{browserLabel}  ·  Single Run";
+        RunSubtitleText.Text = maxIterations == 3   ? $"{browserLabel}  ·  3 Trials"
+                             : maxIterations == 300  ? $"{browserLabel}  ·  300 Iterations"
+                             : rundown               ? $"{browserLabel}  ·  Battery Rundown"
+                                                     : $"{browserLabel}  ·  Single Run";
         RunScore.Text   = "—";
         RunBattery.Text = "—";
         RunElapsed.Text = "0:00:00";
@@ -152,12 +159,13 @@ public partial class SpeedometerWindow : Window
         _stopwatch.Restart();
         _clockTimer.Start();
 
-        if (rundown)
+        if (rundown || trackBattery)
         {
             PreventSleep();
             BenchmarkGuard.Begin();
-            SystemEvents.PowerModeChanged += OnPowerModeChanged;
         }
+        if (rundown)
+            SystemEvents.PowerModeChanged += OnPowerModeChanged;
 
         IProgress<string> progress = new Progress<string>(msg =>
         {
@@ -170,7 +178,9 @@ public partial class SpeedometerWindow : Window
             do
             {
                 var iteration = _result.Entries.Count + 1;
-                RunIterText.Text = $"Iteration {iteration}";
+                RunIterText.Text = _maxIterations > 1
+                    ? $"Iteration {iteration} / {_maxIterations}"
+                    : $"Iteration {iteration}";
 
                 var power      = WinForms.SystemInformation.PowerStatus;
                 var batteryPct = (int)Math.Clamp(power.BatteryLifePercent * 100, 0, 100);
@@ -224,8 +234,9 @@ public partial class SpeedometerWindow : Window
         finally
         {
             if (rundown)
-            {
                 SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+            if (rundown || _trackBattery)
+            {
                 BenchmarkGuard.End();
                 AllowSleep();
             }
@@ -386,18 +397,29 @@ public partial class SpeedometerWindow : Window
             ResLast.Text  = $"{last:F1}";
             ResAvg.Text   = $"{avg:F1}";
 
-            if (result.IsRundown)
+            if (result.IsRundown || result.IsStamina)
             {
                 ResStartBat.Text = result.StartBatteryPct >= 0 ? $"{result.StartBatteryPct}%" : "—";
                 ResEndBat.Text   = $"{result.Entries[^1].BatteryPct}%";
-                ResEndedAt.Text  = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
+                if (result.IsRundown)
+                {
+                    ResBatLabel3.Text = "ENDED AT";
+                    ResEndedAt.Text   = DateTime.Parse(result.StartedAt).Add(result.TotalDuration).ToString("h:mm tt");
+                }
+                else
+                {
+                    var drain = result.Entries[^1].BatteryPct - result.StartBatteryPct;
+                    ResBatLabel3.Text = "DRAIN";
+                    ResEndedAt.Text   = drain <= 0 ? $"{drain}%" : $"+{drain}%";
+                }
             }
         }
 
         var showStats   = !isTrials && result.Entries.Count > 1;
-        TrialsRow.Visibility  = isTrials   ? Visibility.Visible : Visibility.Collapsed;
-        StatsRow.Visibility   = showStats  ? Visibility.Visible : Visibility.Collapsed;
-        BatteryRow.Visibility = showStats && result.IsRundown ? Visibility.Visible : Visibility.Collapsed;
+        var showBattery = showStats && (result.IsRundown || result.IsStamina);
+        TrialsRow.Visibility  = isTrials    ? Visibility.Visible : Visibility.Collapsed;
+        StatsRow.Visibility   = showStats   ? Visibility.Visible : Visibility.Collapsed;
+        BatteryRow.Visibility = showBattery ? Visibility.Visible : Visibility.Collapsed;
         ShowPanel(ResultsPanel);
         SaveHistory(result, isTrials, (int)result.TotalDuration.TotalSeconds);
         Dispatcher.BeginInvoke(DispatcherPriority.Loaded, () => DrawChart(ResChart, result));
@@ -420,9 +442,10 @@ public partial class SpeedometerWindow : Window
     {
         if (result.Entries.Count == 0) return;
         var avg  = result.Entries.Average(e => e.Score);
-        var note = isTrials                  ? $"×3 trials avg  ·  {result.Browser}"
-                 : result.Entries.Count == 1 ? $"Single run  ·  {result.Browser}"
-                 : $"Rundown  ·  {result.IterationCount} iters  ·  {result.Browser}";
+        var note = isTrials                   ? $"×3 trials avg  ·  {result.Browser}"
+                 : result.Entries.Count == 1  ? $"Single run  ·  {result.Browser}"
+                 : result.IsStamina           ? $"300 iters  ·  {result.Browser}"
+                 :                              $"Rundown  ·  {result.IterationCount} iters  ·  {result.Browser}";
         BenchmarkHistory.Upsert(new HistoryEntry
         {
             Tool            = HistoryTool.Speedometer,
